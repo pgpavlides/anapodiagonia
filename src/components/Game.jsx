@@ -240,10 +240,12 @@ const Game = () => {
             timestamp: Date.now()
           });
           
+          // Reset the chain
           newChainType = null;
           newDrawCount = 0;
         }
         
+        // Red Jack plays end the turn even if used to negate a black Jack
         newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
         break;
         

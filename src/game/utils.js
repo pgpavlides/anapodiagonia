@@ -164,20 +164,114 @@ export const initializeGameState = (numPlayers) => {
   // Deal cards to players and set up initial discard pile
   const { deck: newDeck, hands, discardPile } = dealCards(deck, numPlayers);
   
-  // Initial game state
-  return {
+  // Get the effect of the first card
+  const topCard = discardPile[0];
+  let initialGameState = {
     deck: newDeck,
     discardPile,
     hands,
     currentPlayerIndex: 0,
-    lastPlayerIndex: null, // Track the player who played an Ace
-    guraStarterIndex: null, // Track the player who started GURA
+    lastPlayerIndex: null,
+    guraStarterIndex: null,
     direction: 'clockwise',
     gamePhase: 'playing',
     wildSuit: null,
     drawCount: 0,
-    chainType: null, // For 7s and black Jacks chains
+    chainType: null,
     winner: null,
     logs: [{ message: 'Game started', timestamp: Date.now() }]
   };
+
+  // Apply effect of the first card
+  if (topCard) {
+    const effect = getCardEffect(topCard);
+    initialGameState.logs.push({ 
+      message: `Top card is ${topCard.suit} ${topCard.value}`, 
+      timestamp: Date.now() 
+    });
+    
+    switch (effect.type) {
+      case 'wild': // Ace
+        // We'll need to randomly select a suit since there's no player to choose
+        const suits = Object.values(SUITS);
+        const randomSuit = suits[Math.floor(Math.random() * suits.length)];
+        initialGameState.wildSuit = randomSuit;
+        initialGameState.logs.push({ 
+          message: `Initial wild card randomly selected ${randomSuit} as the active suit`, 
+          timestamp: Date.now() 
+        });
+        break;
+        
+      case 'draw_two': // 2
+        // First player draws 2 cards
+        for (let i = 0; i < 2; i++) {
+          if (initialGameState.deck.length > 0) {
+            const drawnCard = initialGameState.deck.pop();
+            initialGameState.hands[0].push(drawnCard);
+          }
+        }
+        initialGameState.logs.push({ 
+          message: `First player draws 2 cards from initial 2 card`, 
+          timestamp: Date.now() 
+        });
+        // Skip first player's turn
+        initialGameState.currentPlayerIndex = 1 % numPlayers;
+        break;
+        
+      case 'reverse': // 3
+        // Reverse initial direction
+        initialGameState.direction = 'counter_clockwise';
+        initialGameState.logs.push({ 
+          message: `Initial direction reversed to counter-clockwise`, 
+          timestamp: Date.now() 
+        });
+        break;
+        
+      case 'draw_chain': // 7
+        // Start with draw chain active
+        initialGameState.chainType = 'draw_chain';
+        initialGameState.drawCount = 2;
+        initialGameState.logs.push({ 
+          message: `Initial 7 starts a chain! First player must draw 2 cards or play a 7`, 
+          timestamp: Date.now() 
+        });
+        break;
+        
+      case 'play_again': // 8
+        // No effect at start
+        break;
+        
+      case 'skip': // 9
+        // Skip first player
+        initialGameState.currentPlayerIndex = 1 % numPlayers;
+        initialGameState.logs.push({ 
+          message: `First player's turn skipped due to initial 9`, 
+          timestamp: Date.now() 
+        });
+        break;
+        
+      case 'draw_ten': // Black Jack
+        initialGameState.chainType = 'draw_ten';
+        initialGameState.drawCount = 10;
+        initialGameState.logs.push({ 
+          message: `Initial Black Jack starts a chain! First player must draw 10 cards or play a black Jack`, 
+          timestamp: Date.now() 
+        });
+        break;
+        
+      case 'negate': // Red Jack
+        // No effect at start
+        break;
+        
+      case 'gura': // King/Queen
+        // No effect at start - can't start with GURA
+        break;
+        
+      default:
+        // Normal card - no effect
+        break;
+    }
+  }
+  
+  return initialGameState;
 };
