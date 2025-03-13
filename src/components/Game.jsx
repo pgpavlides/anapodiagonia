@@ -25,6 +25,7 @@ const Game = () => {
   // Local states
   const [selectedCard, setSelectedCard] = useState(null);
   const [myHand, setMyHand] = useState([]);
+  const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
   
   // Initialize game when host joins
   useEffect(() => {
@@ -42,8 +43,16 @@ const Game = () => {
       if (playerIndex >= 0 && gameState.hands && gameState.hands[playerIndex]) {
         setMyHand(gameState.hands[playerIndex]);
       }
+      
+      // Reset hasDrawnThisTurn when it becomes the player's turn
+      if (gameState.currentPlayerIndex === playerIndex) {
+        // Only reset if it's a new turn (not after playing a card that lets you play again)
+        if (!hasDrawnThisTurn) {
+          setHasDrawnThisTurn(false);
+        }
+      }
     }
-  }, [gameState, player, players]);
+  }, [gameState, player, players, hasDrawnThisTurn]);
   
   // Handle card selection from player hand
   const handleCardClick = (card, index) => {
@@ -295,6 +304,16 @@ const Game = () => {
       });
     }
     
+    // For cards that let you play again (8, or 3 in 2-player), reset hasDrawnThisTurn if staying with same player
+    if (newCurrentPlayerIndex === playerIndex && effect.type !== 'normal') {
+      setHasDrawnThisTurn(false); // Reset so player needs to draw again
+    }
+    
+    // If the player's turn is changing, reset hasDrawnThisTurn
+    if (newCurrentPlayerIndex !== playerIndex) {
+      setHasDrawnThisTurn(false);
+    }
+    
     // Update game state
     setGameState({
       ...newGameState,
@@ -371,6 +390,9 @@ const Game = () => {
     
     // Update player's hand
     newHands[playerIndex] = playerHand;
+    
+    // Mark that the player has drawn a card this turn
+    setHasDrawnThisTurn(true);
     
     // If we're in GURA phase, handle special logic
     if (gameState.gamePhase === GAME_PHASES.GURA) {
@@ -453,6 +475,12 @@ const Game = () => {
       return;
     }
     
+    // Check if the player has drawn a card this turn
+    if (!hasDrawnThisTurn) {
+      // Cannot pass turn without drawing
+      return;
+    }
+    
     const newGameState = { ...gameState };
     
     // Log
@@ -467,6 +495,9 @@ const Game = () => {
       players.length, 
       newGameState.direction
     );
+    
+    // Reset hasDrawnThisTurn for the next turn
+    setHasDrawnThisTurn(false);
     
     // Update game state
     setGameState(newGameState, true); // Use reliable sync for game state
@@ -637,16 +668,18 @@ const Game = () => {
             }}>
               <button 
                 onClick={handlePassTurn}
+                disabled={!hasDrawnThisTurn}
                 style={{
-                  backgroundColor: '#e9c46a',
-                  color: '#264653',
+                  backgroundColor: hasDrawnThisTurn ? '#e9c46a' : '#cccccc',
+                  color: hasDrawnThisTurn ? '#264653' : '#666666',
                   border: 'none',
                   borderRadius: '4px',
                   padding: '8px 15px',
                   fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  cursor: hasDrawnThisTurn ? 'pointer' : 'not-allowed',
+                  boxShadow: hasDrawnThisTurn ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
                 }}
+                title={hasDrawnThisTurn ? 'Pass your turn to the next player' : 'You must draw a card before passing'}
               >
                 Pass Turn
               </button>
