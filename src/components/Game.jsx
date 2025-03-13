@@ -147,14 +147,9 @@ const Game = () => {
           timestamp: Date.now()
         });
         
-        // Check for 2 player game
-        if (players.length === 2) {
-          // In 2 player game, the player who played 2 makes the other player draw
-          newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
-        } else {
-          // Move to the next player normally
-          newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
-        }
+        // In any case, the player who threw the 2 gets to play again
+        newCurrentPlayerIndex = playerIndex;
+        
         break;
         
       case 'reverse':
@@ -351,23 +346,13 @@ const Game = () => {
         timestamp: Date.now()
       });
       
-      // If this was from a 7 chain (draw 2 cards), the player still gets to play their turn
-      // For other chain types (like Jack), the turn moves to the next player
-      if (gameState.chainType === 'draw_chain') {
-        // Player gets to continue their turn - don't change currentPlayerIndex
-        // Just add a log message to clarify
-        newGameState.logs.push({
-          message: `${player.getProfile().name} continues their turn`,
-          timestamp: Date.now()
-        });
-      } else {
-        // For other chain types, move to the next player
-        newGameState.currentPlayerIndex = getNextPlayerIndex(
-          playerIndex, 
-          players.length, 
-          newGameState.direction
-        );
-      }
+      // Player continues their turn after drawing cards from any effect
+      newGameState.logs.push({
+        message: `${player.getProfile().name} continues their turn`,
+        timestamp: Date.now()
+      });
+      
+      // Don't change the current player - they continue their turn
     } else {
       // Regular draw - just one card
       if (newGameState.deck.length > 0) {
@@ -380,12 +365,14 @@ const Game = () => {
         message: `${player.getProfile().name} drew a card`,
         timestamp: Date.now()
       });
+
+      // Drawing a card doesn't end the player's turn automatically
     }
     
     // Update player's hand
     newHands[playerIndex] = playerHand;
     
-    // If we're in GURA phase, stay in that phase
+    // If we're in GURA phase, handle special logic
     if (gameState.gamePhase === GAME_PHASES.GURA) {
       // Move to the next player
       const nextPlayerIndex = getNextPlayerIndex(
@@ -407,14 +394,8 @@ const Game = () => {
       } else {
         newGameState.currentPlayerIndex = nextPlayerIndex;
       }
-    } else if (gameState.drawCount === 0) { // Only change player if it wasn't a 7 chain draw
-      // For regular draws, move to the next player
-      newGameState.currentPlayerIndex = getNextPlayerIndex(
-        playerIndex, 
-        players.length, 
-        newGameState.direction
-      );
     }
+    // Otherwise, drawing doesn't end turn - player needs to pass explicitly
     
     // Update game state
     setGameState({
@@ -453,6 +434,36 @@ const Game = () => {
     // Move to the next player
     newGameState.currentPlayerIndex = getNextPlayerIndex(
       playerIndex,
+      players.length, 
+      newGameState.direction
+    );
+    
+    // Update game state
+    setGameState(newGameState, true); // Use reliable sync for game state
+  };
+  
+  // Handle pass turn button
+  const handlePassTurn = () => {
+    if (!gameState) return;
+    
+    // Check if it's the player's turn
+    const playerIndex = players.findIndex(p => p.id === player.id);
+    
+    if (gameState.currentPlayerIndex !== playerIndex) {
+      return;
+    }
+    
+    const newGameState = { ...gameState };
+    
+    // Log
+    newGameState.logs.push({
+      message: `${player.getProfile().name} passed their turn`,
+      timestamp: Date.now()
+    });
+    
+    // Move to the next player
+    newGameState.currentPlayerIndex = getNextPlayerIndex(
+      playerIndex, 
       players.length, 
       newGameState.direction
     );
@@ -617,6 +628,30 @@ const Game = () => {
       
         {/* Player's hand */}
         <div style={{ marginTop: 'auto', overflow: 'hidden' }}>
+          {gameState.currentPlayerIndex === players.findIndex(p => p.id === player.id) && (
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'flex-end', 
+              padding: '5px 10px',
+              marginBottom: '5px' 
+            }}>
+              <button 
+                onClick={handlePassTurn}
+                style={{
+                  backgroundColor: '#e9c46a',
+                  color: '#264653',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '8px 15px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                }}
+              >
+                Pass Turn
+              </button>
+            </div>
+          )}
           <PlayerHand 
             cards={myHand}
             onCardClick={handleCardClick}
