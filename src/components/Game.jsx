@@ -1,4 +1,24 @@
-import React, { useState, useEffect } from 'react';
+    // Check if this was the player's last GURA card (regardless of who started it)
+    if (gameState.gamePhase === GAME_PHASES.GURA && effect.type === 'gura') {
+      
+      // Check if the player has any more cards of this value
+      const hasMoreGuraCards = playerHand.some(c => c.value === card.value);
+      
+      if (!hasMoreGuraCards) {
+        // Automatically end the GURA round
+        newGamePhase = GAME_PHASES.PLAYING;
+        newChainType = null;
+        newGameState.guraCardValue = null;
+        
+        newLogs.push({
+          message: `${player.getProfile().name} played their last GURA card, ending the round!`,
+          timestamp: Date.now()
+        });
+        
+        // Reset GURA starter
+        newGameState.guraStarterIndex = null;
+      }
+    }import React, { useState, useEffect } from 'react';
 import { 
   myPlayer, 
   usePlayersList, 
@@ -65,6 +85,10 @@ const Game = () => {
         canPlay = true;
       } else if (gameState.chainType === 'draw_ten' && card.value === 'jack' && 
                 (card.suit === 'clubs' || card.suit === 'spades')) {
+        canPlay = true;
+      } else if (gameState.chainType === 'draw_ten' && card.value === 'jack' && 
+                (card.suit === 'hearts' || card.suit === 'diamonds')) {
+        // Allow red Jack to negate black Jack at any point
         canPlay = true;
       } else if (gameState.chainType === 'draw_ten_response' && card.value === 'jack' && 
                 (card.suit === 'hearts' || card.suit === 'diamonds')) {
@@ -669,26 +693,70 @@ const Game = () => {
     const winnerPlayer = players.find(p => p.id === gameState.winner);
     
     return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
-        <h2>Game Over!</h2>
-        <h3>{winnerPlayer ? winnerPlayer.getProfile().name : 'Someone'} has won!</h3>
-        
-        {isHost && (
-          <button 
-            onClick={startNewGame}
-            style={{
-              padding: '10px 20px',
-              fontSize: '16px',
-              backgroundColor: '#f4a261',
-              border: 'none',
-              borderRadius: '5px',
-              cursor: 'pointer',
-              marginTop: '20px'
-            }}
-          >
-            Start New Game
-          </button>
-        )}
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '50px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        backgroundColor: '#2a9d8f', // Changed to a brighter teal background
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 100
+      }}>
+        <div style={{
+          backgroundColor: '#e76f51', // Orange background for the message box
+          padding: '60px 80px',
+          borderRadius: '20px',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+          width: '90%',
+          maxWidth: '600px',
+          border: '5px solid #f4a261'
+        }}>
+          <h2 style={{ 
+            fontSize: '72px', 
+            color: '#ffffff',
+            margin: '0 0 30px 0',
+            textShadow: '3px 3px 6px rgba(0, 0, 0, 0.5)',
+            fontWeight: 'bold',
+            letterSpacing: '2px'
+          }}>GAME OVER!</h2>
+          <h3 style={{ 
+            fontSize: '48px', 
+            color: '#ffffff',
+            margin: '0 0 30px 0',
+            textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
+            fontWeight: 'bold'
+          }}>{winnerPlayer ? winnerPlayer.getProfile().name : 'Someone'} has won!</h3>
+          
+          {isHost && (
+            <button 
+              onClick={startNewGame}
+              style={{
+                padding: '20px 40px',
+                fontSize: '28px',
+                backgroundColor: '#264653',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                marginTop: '30px',
+                boxShadow: '0 6px 12px rgba(0, 0, 0, 0.3)',
+                transition: 'all 0.2s ease',
+                fontWeight: 'bold'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1a2f38'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#264653'}
+            >
+              Start New Game
+            </button>
+          )}
+        </div>
       </div>
     );
   }

@@ -246,7 +246,7 @@ const GameBoard = ({
               <p style={{ margin: 0 }}>Chain of 7s active! Play a 7 or draw cards.</p>
             )}
             {chainType === 'draw_ten' && (
-              <p style={{ margin: 0 }}>Chain of black Jacks active! Play a black Jack or draw cards.</p>
+              <p style={{ margin: 0 }}>Chain of black Jacks active! Play a black Jack to continue, a red Jack to negate, or draw cards.</p>
             )}
             {chainType === 'draw_ten_response' && (
               <p style={{ margin: 0 }}>You can play a red Jack to negate or draw cards.</p>

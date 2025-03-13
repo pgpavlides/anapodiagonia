@@ -23,9 +23,9 @@ const PlayerHand = ({
     
     // If we're in a chain of black Jacks
     if (isChainActive && chainType === 'draw_ten') {
-      // Only black Jacks can be played in this chain
+      // Both black Jacks (to continue chain) and red Jacks (to negate) can be played
       return cards.filter(card => 
-        (card.value === 'jack' && (card.suit === 'clubs' || card.suit === 'spades'))
+        (card.value === 'jack')
       );
     }
     
