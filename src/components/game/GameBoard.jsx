@@ -28,14 +28,20 @@ const GameBoard = ({
         {drawCount > 0 && (
           <div style={{ 
             marginBottom: '15px', 
-            padding: '8px 15px', 
+            padding: '10px 20px', 
             backgroundColor: '#e76f51', 
             color: 'white',
             borderRadius: '8px',
             fontWeight: 'bold',
-            animation: 'pulse 1.5s infinite'
+            animation: 'pulse 1.5s infinite',
+            fontSize: '16px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+            border: '2px solid #e76f51'
           }}>
-            <p style={{ margin: 0 }}>Draw {drawCount} cards!</p>
+            <p style={{ margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: '18px', marginRight: '8px' }}>⚠️</span>
+              Draw {drawCount} cards!
+            </p>
           </div>
         )}
         
@@ -43,13 +49,18 @@ const GameBoard = ({
         {gamePhase === 'suit_selection' && lastPlayerIndex !== playerIndex && (
           <div style={{
             marginBottom: '15px',
-            padding: '10px 15px',
-            backgroundColor: '#f1faee',
+            padding: '12px 15px',
+            backgroundColor: '#2a9d8f',
             borderRadius: '10px',
             textAlign: 'center',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            boxShadow: '0 3px 6px rgba(0,0,0,0.2)',
+            color: 'white',
+            fontWeight: 'bold',
+            border: '2px solid #2a9d8f',
+            animation: 'pulse 1.5s infinite'
           }}>
-            <p style={{ margin: 0, fontWeight: 'bold' }}>
+            <p style={{ margin: 0, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: '18px', marginRight: '8px' }}>⏳</span>
               Waiting for {lastPlayerIndex !== null && players[lastPlayerIndex] ? players[lastPlayerIndex].name : 'another player'} to select a suit...
             </p>
           </div>
@@ -62,32 +73,41 @@ const GameBoard = ({
             display: 'flex', 
             flexDirection: 'column',
             alignItems: 'center',
-            padding: '10px 15px',
-            backgroundColor: '#f1faee',
+            padding: '15px',
+            backgroundColor: '#2a9d8f',
             borderRadius: '10px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            boxShadow: '0 3px 6px rgba(0,0,0,0.2)',
+            color: 'white',
+            border: '2px solid #2a9d8f',
+            animation: 'pulse 1.5s infinite'
           }}>
-            <h3 style={{ margin: '0 0 10px 0' }}>Select a suit:</h3>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
+            <h3 style={{ margin: '0 0 15px 0', fontSize: '18px' }}>SELECT A SUIT:</h3>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
               {Object.values(SUITS).map(suit => (
                 <div 
                   key={suit} 
                   onClick={() => onSuitSelect(suit)}
                   style={{
                     cursor: 'pointer',
-                    width: '50px',
-                    height: '50px',
+                    width: '60px',
+                    height: '60px',
                     display: 'flex',
                     justifyContent: 'center',
                     alignItems: 'center',
                     padding: '5px',
-                    border: '2px solid #ddd',
-                    borderRadius: '5px',
-                    transition: 'transform 0.2s, border-color 0.2s',
-                    hover: {
-                      transform: 'scale(1.05)',
-                      borderColor: '#4c9aff'
-                    }
+                    backgroundColor: 'white',
+                    border: '3px solid #f4a261',
+                    borderRadius: '10px',
+                    transition: 'transform 0.2s, box-shadow 0.2s',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                    e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
                   }}
                 >
                   <img 
@@ -154,12 +174,16 @@ const GameBoard = ({
         {/* Game status text */}
         {chainType && (
           <div style={{ 
-            padding: '5px 15px',
-            backgroundColor: '#f8f9fa',
+            padding: '10px 20px',
+            backgroundColor: chainType === 'gura' ? '#e76f51' : '#f8f9fa',
             borderRadius: '5px',
-            marginTop: '5px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-            fontSize: '14px'
+            marginTop: '10px',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+            fontSize: chainType === 'gura' ? '16px' : '14px',
+            fontWeight: 'bold',
+            color: chainType === 'gura' ? 'white' : '#333',
+            animation: chainType === 'gura' ? 'pulse 1.5s infinite' : 'none',
+            border: chainType === 'gura' ? '2px solid #e76f51' : 'none'
           }}>
             {chainType === 'draw_chain' && (
               <p style={{ margin: 0 }}>Chain of 7s active! Play a 7 or draw cards.</p>
@@ -171,7 +195,11 @@ const GameBoard = ({
               <p style={{ margin: 0 }}>You can play a red Jack to negate or draw cards.</p>
             )}
             {chainType === 'gura' && (
-              <p style={{ margin: 0 }}>GURA round! Play a {topCard?.value === 'king' ? 'King' : 'Queen'} or draw a card.</p>
+              <p style={{ margin: 0 }}>
+                <span style={{ fontSize: '18px', marginRight: '5px' }}>🃏</span>
+                GURA ROUND! Play a {topCard?.value === 'king' ? 'King' : 'Queen'} or draw a card.
+                <span style={{ fontSize: '18px', marginLeft: '5px' }}>🃏</span>
+              </p>
             )}
           </div>
         )}

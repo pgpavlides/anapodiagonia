@@ -26,6 +26,7 @@ const Game = () => {
   const [selectedCard, setSelectedCard] = useState(null);
   const [myHand, setMyHand] = useState([]);
   const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
+  const [drewFromEffect, setDrewFromEffect] = useState(false); // Track if player drew due to card effect
   
   // Initialize game when host joins
   useEffect(() => {
@@ -44,11 +45,12 @@ const Game = () => {
         setMyHand(gameState.hands[playerIndex]);
       }
       
-      // Reset hasDrawnThisTurn when it becomes the player's turn
+      // Reset drawing states when it becomes the player's turn
       if (gameState.currentPlayerIndex === playerIndex) {
         // Only reset if it's a new turn (not after playing a card that lets you play again)
         if (!hasDrawnThisTurn) {
           setHasDrawnThisTurn(false);
+          setDrewFromEffect(false); // Reset the effect drawing flag too
         }
       }
     }
@@ -279,6 +281,9 @@ const Game = () => {
           newGamePhase = GAME_PHASES.GURA;
           newChainType = 'gura';
           
+          // Set current player as the GURA starter
+          newGameState.guraStarterIndex = playerIndex;
+          
           newLogs.push({
             message: `${player.getProfile().name} started a GURA round with a ${card.value}!`,
             timestamp: Date.now()
@@ -385,14 +390,18 @@ const Game = () => {
         timestamp: Date.now()
       });
 
+      // This counts as the player's mandatory draw for their turn
+      setHasDrawnThisTurn(true);
+
       // Drawing a card doesn't end the player's turn automatically
     }
     
     // Update player's hand
     newHands[playerIndex] = playerHand;
     
-    // Mark that the player has drawn a card this turn
-    setHasDrawnThisTurn(true);
+    // Mark that the player has drawn cards due to an effect
+    // But this doesn't count as their mandatory draw for the turn
+    setDrewFromEffect(true);
     
     // If we're in GURA phase, handle special logic
     if (gameState.gamePhase === GAME_PHASES.GURA) {
@@ -404,18 +413,9 @@ const Game = () => {
       );
       
       // If we've gone full circle back to the player who started GURA,
-      // end the GURA phase
-      if (nextPlayerIndex === gameState.currentPlayerIndex) {
-        newGameState.gamePhase = GAME_PHASES.PLAYING;
-        newGameState.chainType = null;
-        
-        newGameState.logs.push({
-          message: `GURA round ended`,
-          timestamp: Date.now()
-        });
-      } else {
-        newGameState.currentPlayerIndex = nextPlayerIndex;
-      }
+      // we'll let them decide when to end it (they have an End GURA button)
+      // So we just continue with the GURA round
+      newGameState.currentPlayerIndex = nextPlayerIndex;
     }
     // Otherwise, drawing doesn't end turn - player needs to pass explicitly
     
@@ -498,6 +498,45 @@ const Game = () => {
     
     // Reset hasDrawnThisTurn for the next turn
     setHasDrawnThisTurn(false);
+    
+    // Update game state
+    setGameState(newGameState, true); // Use reliable sync for game state
+  };
+  
+  // Handle ending GURA round (only for the player who started it)
+  const handleEndGura = () => {
+    if (!gameState || gameState.gamePhase !== GAME_PHASES.GURA) {
+      return;
+    }
+    
+    const playerIndex = players.findIndex(p => p.id === player.id);
+    
+    // Only the player who started GURA can end it
+    if (gameState.guraStarterIndex !== playerIndex) {
+      return;
+    }
+    
+    const newGameState = { ...gameState };
+    
+    // End GURA round
+    newGameState.gamePhase = GAME_PHASES.PLAYING;
+    newGameState.chainType = null;
+    
+    // Add log
+    newGameState.logs.push({
+      message: `${player.getProfile().name} ended the GURA round`,
+      timestamp: Date.now()
+    });
+    
+    // Give turn to the next player after the one who started GURA
+    newGameState.currentPlayerIndex = getNextPlayerIndex(
+      playerIndex,
+      players.length, 
+      newGameState.direction
+    );
+    
+    // Reset GURA starter
+    newGameState.guraStarterIndex = null;
     
     // Update game state
     setGameState(newGameState, true); // Use reliable sync for game state
@@ -662,14 +701,49 @@ const Game = () => {
           {gameState.currentPlayerIndex === players.findIndex(p => p.id === player.id) && (
             <div style={{ 
               display: 'flex', 
-              justifyContent: 'flex-end', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
               padding: '5px 10px',
               marginBottom: '5px' 
             }}>
-              <button 
-                onClick={handlePassTurn}
-                disabled={!hasDrawnThisTurn}
-                style={{
+              {/* Display message if player drew from effect but still needs mandatory draw */}
+              {drewFromEffect && !hasDrawnThisTurn && (
+                <div style={{
+                  color: '#e76f51',
+                  fontWeight: 'bold',
+                  fontSize: '14px'
+                }}>
+                  You must still draw for your turn
+                </div>
+              )}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
+                {/* End GURA button (only visible for GURA starter during GURA phase) */}
+                {gameState.gamePhase === GAME_PHASES.GURA && 
+                 gameState.guraStarterIndex === players.findIndex(p => p.id === player.id) && (
+                  <button 
+                    onClick={handleEndGura}
+                    style={{
+                      backgroundColor: '#e76f51',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      padding: '8px 15px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    title="End the GURA round and start a new one if you have more cards"
+                  >
+                    <span style={{ fontSize: '16px', marginRight: '5px' }}>🃏</span>
+                    End GURA
+                  </button>
+                )}
+                <button 
+                  onClick={handlePassTurn}
+                  disabled={!hasDrawnThisTurn}
+                  style={{
                   backgroundColor: hasDrawnThisTurn ? '#e9c46a' : '#cccccc',
                   color: hasDrawnThisTurn ? '#264653' : '#666666',
                   border: 'none',
@@ -679,10 +753,11 @@ const Game = () => {
                   cursor: hasDrawnThisTurn ? 'pointer' : 'not-allowed',
                   boxShadow: hasDrawnThisTurn ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
                 }}
-                title={hasDrawnThisTurn ? 'Pass your turn to the next player' : 'You must draw a card before passing'}
+                title={hasDrawnThisTurn ? 'Pass your turn to the next player' : drewFromEffect ? 'You drew cards from an effect but must still draw for your turn' : 'You must draw a card before passing'}
               >
                 Pass Turn
               </button>
+              </div>
             </div>
           )}
           <PlayerHand 

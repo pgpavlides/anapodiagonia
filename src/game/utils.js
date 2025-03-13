@@ -171,6 +171,7 @@ export const initializeGameState = (numPlayers) => {
     hands,
     currentPlayerIndex: 0,
     lastPlayerIndex: null, // Track the player who played an Ace
+    guraStarterIndex: null, // Track the player who started GURA
     direction: 'clockwise',
     gamePhase: 'playing',
     wildSuit: null,

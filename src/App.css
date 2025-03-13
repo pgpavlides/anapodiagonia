@@ -4,6 +4,19 @@
   padding: 0;
 }
 
+/* Pulse animation for important notifications */
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* Hide scrollbars but allow scrolling */
 .player-hand > div::-webkit-scrollbar {
   display: none;
