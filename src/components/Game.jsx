@@ -13,31 +13,25 @@ import GameBoard from './game/GameBoard';
 import GameLogs from './game/GameLogs';
 
 const Game = () => {
-  // PlayroomKit hooks
   const player = myPlayer();
   const roomCode = getRoomCode();
   const isHost = useIsHost();
   const players = usePlayersList(true);
   
-  // Game state using PlayroomKit's useMultiplayerState
   const [gameState, setGameState] = useMultiplayerState('gameState', null);
   
-  // Local states
   const [selectedCard, setSelectedCard] = useState(null);
   const [myHand, setMyHand] = useState([]);
   const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
-  const [drewFromEffect, setDrewFromEffect] = useState(false); // Track if player drew due to card effect
+  const [drewFromEffect, setDrewFromEffect] = useState(false);
   
-  // Initialize game when host joins
   useEffect(() => {
     if (isHost && !gameState) {
-      // Initialize the game
       const initialState = initializeGameState(players.length);
-      setGameState(initialState, true); // Use reliable sync for game state
+      setGameState(initialState, true);
     }
   }, [isHost, players.length, gameState, setGameState]);
   
-  // Update local hand when game state changes
   useEffect(() => {
     if (gameState && player) {
       const playerIndex = players.findIndex(p => p.id === player.id);
@@ -45,36 +39,28 @@ const Game = () => {
         setMyHand(gameState.hands[playerIndex]);
       }
       
-      // Reset drawing states when it becomes the player's turn
       if (gameState.currentPlayerIndex === playerIndex) {
-        // Only reset if it's a new turn (not after playing a card that lets you play again)
         if (!hasDrawnThisTurn) {
           setHasDrawnThisTurn(false);
-          setDrewFromEffect(false); // Reset the effect drawing flag too
+          setDrewFromEffect(false);
         }
       }
     }
   }, [gameState, player, players, hasDrawnThisTurn]);
   
-  // Handle card selection from player hand
   const handleCardClick = (card, index) => {
-    // Check if it's the player's turn
     if (gameState.currentPlayerIndex !== players.findIndex(p => p.id === player.id)) {
       return;
     }
     
-    // Check if the card can be played
     const topCard = gameState.discardPile[gameState.discardPile.length - 1];
     let canPlay = false;
     
-    // Handling different game phases
     if (gameState.gamePhase === GAME_PHASES.SUIT_SELECTION) {
-      return; // Wait for suit selection
+      return;
     } else if (gameState.gamePhase === GAME_PHASES.GURA) {
-      // In GURA, can only play cards of the same value as the initiator
-      canPlay = card.value === topCard.value;
+      canPlay = card.value === gameState.guraCardValue;
     } else if (gameState.drawCount > 0) {
-      // Handling draw chains (7s or black Jacks)
       if (gameState.chainType === 'draw_chain' && card.value === '7') {
         canPlay = true;
       } else if (gameState.chainType === 'draw_ten' && card.value === 'jack' && 
@@ -87,39 +73,32 @@ const Game = () => {
         canPlay = false;
       }
     } else {
-      // Normal play - check if card matches suit or value
       canPlay = canPlayCard(topCard, card, gameState.wildSuit);
     }
     
     if (canPlay) {
-      // Play the card
       playCard(card, index);
     }
   };
   
-  // Handle playing a card
   const playCard = (card, index) => {
     if (!gameState) return;
     
     const newGameState = { ...gameState };
     const playerIndex = players.findIndex(p => p.id === player.id);
     
-    // Remove the card from player's hand
     const newHands = [...newGameState.hands];
     const playerHand = [...newHands[playerIndex]];
     playerHand.splice(index, 1);
     newHands[playerIndex] = playerHand;
     
-    // Add card to discard pile
     const newDiscardPile = [...newGameState.discardPile, card];
     
-    // Add log
     const newLogs = [...newGameState.logs, {
       message: `${player.getProfile().name} played ${card.suit} ${card.value}`,
       timestamp: Date.now()
     }];
     
-    // Process card effect
     const effect = getCardEffect(card);
     let newCurrentPlayerIndex = playerIndex;
     let newDirection = newGameState.direction;
@@ -128,24 +107,30 @@ const Game = () => {
     let newDrawCount = newGameState.drawCount;
     let newChainType = newGameState.chainType;
     let newLastPlayerIndex = newGameState.lastPlayerIndex;
+    let startedGura = false;
+    
+    if (newGameState.potentialWinner && card.value === '7') {
+      newGameState.potentialWinner = null;
+      
+      newLogs.push({
+        message: `${player.getProfile().name} countered the final 7 with their own 7!`,
+        timestamp: Date.now()
+      });
+    }
     
     switch (effect.type) {
       case 'wild':
-        // Ace - wild card
         newGamePhase = GAME_PHASES.SUIT_SELECTION;
-        // Store the player index who played the Ace
         newLastPlayerIndex = playerIndex;
         break;
         
       case 'draw_two':
-        // 2 - draw 2 cards
         const prevPlayer = getNextPlayerIndex(
           playerIndex, 
           players.length, 
           newDirection === 'clockwise' ? 'counter_clockwise' : 'clockwise'
         );
         
-        // Add cards to previous player's hand
         for (let i = 0; i < 2; i++) {
           if (newGameState.deck.length > 0) {
             const drawnCard = newGameState.deck.pop();
@@ -158,21 +143,16 @@ const Game = () => {
           timestamp: Date.now()
         });
         
-        // In any case, the player who threw the 2 gets to play again
         newCurrentPlayerIndex = playerIndex;
         
         break;
         
       case 'reverse':
-        // 3 - reverse direction
         newDirection = newDirection === 'clockwise' ? 'counter_clockwise' : 'clockwise';
         
-        // In 2-player games, 3 acts like an 8 (play again)
         if (players.length === 2) {
-          // Player plays again
           newCurrentPlayerIndex = playerIndex;
         } else {
-          // Move to the next player in the new direction
           newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
         }
         
@@ -183,16 +163,13 @@ const Game = () => {
         break;
         
       case 'draw_chain':
-        // 7 - start or continue a draw chain
         if (newChainType === 'draw_chain') {
-          // Continue the chain
           newDrawCount += 2;
           newLogs.push({
             message: `${player.getProfile().name} added to the chain! Next player draws ${newDrawCount} cards or plays a 7`,
             timestamp: Date.now()
           });
         } else {
-          // Start a new chain
           newChainType = 'draw_chain';
           newDrawCount = 2;
           newLogs.push({
@@ -201,13 +178,11 @@ const Game = () => {
           });
         }
         
-        // Move to the next player
         newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
         break;
         
       case 'play_again':
-        // 8 - play again
-        newCurrentPlayerIndex = playerIndex; // Stay with the current player
+        newCurrentPlayerIndex = playerIndex;
         
         newLogs.push({
           message: `${player.getProfile().name} plays again!`,
@@ -216,13 +191,9 @@ const Game = () => {
         break;
         
       case 'skip':
-        // 9 - skip next player
-        // In 2-player games, 9 acts like an 8 (play again)
         if (players.length === 2) {
-          // Player plays again
           newCurrentPlayerIndex = playerIndex;
         } else {
-          // Skip the next player
           newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection, true);
         }
         
@@ -233,16 +204,13 @@ const Game = () => {
         break;
         
       case 'draw_ten':
-        // Black Jack - start or continue a draw 10 chain
         if (newChainType === 'draw_ten') {
-          // Continue the chain
           newDrawCount += 10;
           newLogs.push({
             message: `${player.getProfile().name} added to the chain! Next player draws ${newDrawCount} cards or plays a black Jack`,
             timestamp: Date.now()
           });
         } else {
-          // Start a new chain
           newChainType = 'draw_ten';
           newDrawCount = 10;
           newLogs.push({
@@ -251,99 +219,119 @@ const Game = () => {
           });
         }
         
-        // Move to the next player
         newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
         break;
         
       case 'negate':
-        // Red Jack - negate a black Jack's effect
         if (newChainType === 'draw_ten' || newChainType === 'draw_ten_response') {
           newLogs.push({
             message: `${player.getProfile().name} negated the black Jack with a red Jack!`,
             timestamp: Date.now()
           });
           
-          // Reset the chain
           newChainType = null;
           newDrawCount = 0;
         }
         
-        // Move to the next player
         newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
         break;
         
       case 'gura':
-        // King or Queen - start a GURA round if player has more in hand
         const hasSameValueCards = playerHand.some(c => c.value === card.value);
         
         if (hasSameValueCards) {
-          // Start GURA round
-          newGamePhase = GAME_PHASES.GURA;
-          newChainType = 'gura';
+          newGameState.guraCardValue = card.value;
           
-          // Set current player as the GURA starter
+          newGameState.pendingGuraDecision = true;
+          startedGura = true;
+          
           newGameState.guraStarterIndex = playerIndex;
           
           newLogs.push({
-            message: `${player.getProfile().name} started a GURA round with a ${card.value}!`,
+            message: `${player.getProfile().name} played a ${card.value}. They can start a GURA round!`,
             timestamp: Date.now()
           });
+          
+          newCurrentPlayerIndex = playerIndex;
+        } else {
+          newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
         }
-        
-        // Move to the next player
-        newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
         break;
         
       default:
-        // Normal card - just move to the next player
         newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
         break;
     }
     
-    // Check if player has won
     if (playerHand.length === 0) {
-      newGamePhase = GAME_PHASES.GAME_OVER;
-      newLogs.push({
-        message: `${player.getProfile().name} has won the game!`,
-        timestamp: Date.now()
-      });
+      if (card.value === '7' && (newChainType === 'draw_chain' || effect.type === 'draw_chain')) {
+        newLogs.push({
+          message: `${player.getProfile().name} played their last card, but the next player must respond to the 7!`,
+          timestamp: Date.now()
+        });
+        
+        newGameState.potentialWinner = player.id;
+      } else {
+        newGamePhase = GAME_PHASES.GAME_OVER;
+        newLogs.push({
+          message: `${player.getProfile().name} has won the game!`,
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    if (newGameState.potentialWinner) {
+      const nextPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
+      const nextPlayerHand = newHands[nextPlayerIndex];
+      const nextPlayerHas7 = nextPlayerHand.some(c => c.value === '7');
+      
+      if (!nextPlayerHas7) {
+        newGamePhase = GAME_PHASES.GAME_OVER;
+        newGameState.winner = newGameState.potentialWinner;
+        
+        const winnerPlayer = players.find(p => p.id === newGameState.potentialWinner);
+        newLogs.push({
+          message: `${winnerPlayer ? winnerPlayer.getProfile().name : 'Player'} wins the game!`,
+          timestamp: Date.now()
+        });
+      }
     }
     
-    // For cards that let you play again (8, or 3 in 2-player), reset hasDrawnThisTurn if staying with same player
     if (newCurrentPlayerIndex === playerIndex && effect.type !== 'normal') {
-      setHasDrawnThisTurn(false); // Reset so player needs to draw again
+      setHasDrawnThisTurn(false);
     }
     
-    // If the player's turn is changing, reset hasDrawnThisTurn
     if (newCurrentPlayerIndex !== playerIndex) {
       setHasDrawnThisTurn(false);
     }
     
-    // Update game state
     setGameState({
       ...newGameState,
       hands: newHands,
       discardPile: newDiscardPile,
       currentPlayerIndex: newCurrentPlayerIndex,
       direction: newDirection,
-      gamePhase: newGamePhase,
+      gamePhase: startedGura ? (newGameState.pendingGuraDecision ? newGamePhase : GAME_PHASES.GURA) : newGamePhase,
       wildSuit: newWildSuit,
       drawCount: newDrawCount,
-      chainType: newChainType,
+      chainType: startedGura ? (newGameState.pendingGuraDecision ? newChainType : 'gura') : newChainType,
       lastPlayerIndex: newLastPlayerIndex,
       logs: newLogs,
-      winner: playerHand.length === 0 ? player.id : null
-    }, true); // Use reliable sync for important game state changes
+      winner: newGamePhase === GAME_PHASES.GAME_OVER ? player.id : null
+    }, true);
   };
   
-  // Handle drawing a card from the deck
   const handleDeckClick = () => {
     if (!gameState) return;
     
-    // Check if it's the player's turn
     const playerIndex = players.findIndex(p => p.id === player.id);
     
     if (gameState.currentPlayerIndex !== playerIndex) {
+      return;
+    }
+    
+    if (gameState.pendingGuraDecision) {
+      confirmGura(false);
       return;
     }
     
@@ -351,7 +339,6 @@ const Game = () => {
     const newHands = [...newGameState.hands];
     const playerHand = [...newHands[playerIndex]];
     
-    // If there's a draw chain active, draw multiple cards
     if (gameState.drawCount > 0) {
       for (let i = 0; i < gameState.drawCount; i++) {
         if (newGameState.deck.length > 0) {
@@ -360,73 +347,69 @@ const Game = () => {
         }
       }
       
-      // Reset the chain
       newGameState.chainType = null;
       newGameState.drawCount = 0;
       
-      // Log
       newGameState.logs.push({
         message: `${player.getProfile().name} drew ${gameState.drawCount} cards`,
         timestamp: Date.now()
       });
       
-      // Player continues their turn after drawing cards from any effect
       newGameState.logs.push({
         message: `${player.getProfile().name} continues their turn`,
         timestamp: Date.now()
       });
       
-      // Don't change the current player - they continue their turn
     } else {
-      // Regular draw - just one card
       if (newGameState.deck.length > 0) {
         const drawnCard = newGameState.deck.pop();
         playerHand.push(drawnCard);
       }
       
-      // Log
       newGameState.logs.push({
         message: `${player.getProfile().name} drew a card`,
         timestamp: Date.now()
       });
 
-      // This counts as the player's mandatory draw for their turn
       setHasDrawnThisTurn(true);
-
-      // Drawing a card doesn't end the player's turn automatically
     }
     
-    // Update player's hand
     newHands[playerIndex] = playerHand;
     
-    // Mark that the player has drawn cards due to an effect
-    // But this doesn't count as their mandatory draw for the turn
     setDrewFromEffect(true);
     
-    // If we're in GURA phase, handle special logic
     if (gameState.gamePhase === GAME_PHASES.GURA) {
-      // Move to the next player
-      const nextPlayerIndex = getNextPlayerIndex(
-        playerIndex, 
-        players.length, 
-        newGameState.direction
-      );
+      const hasGuraCard = playerHand.some(card => card.value === newGameState.guraCardValue);
       
-      // If we've gone full circle back to the player who started GURA,
-      // we'll let them decide when to end it (they have an End GURA button)
-      // So we just continue with the GURA round
-      newGameState.currentPlayerIndex = nextPlayerIndex;
+      if (hasGuraCard) {
+        newGameState.logs.push({
+          message: `${player.getProfile().name} drew a card and must play their ${newGameState.guraCardValue}`,
+          timestamp: Date.now()
+        });
+        
+        newGameState.currentPlayerIndex = playerIndex;
+      } else {
+        const nextPlayerIndex = getNextPlayerIndex(
+          playerIndex, 
+          players.length, 
+          newGameState.direction
+        );
+        
+        newGameState.logs.push({
+          message: `${player.getProfile().name} drew a card but doesn't have a ${newGameState.guraCardValue}`,
+          timestamp: Date.now()
+        });
+        
+        newGameState.currentPlayerIndex = nextPlayerIndex;
+      }
     }
-    // Otherwise, drawing doesn't end turn - player needs to pass explicitly
     
-    // Update game state
     setGameState({
       ...newGameState,
       hands: newHands
-    }, true); // Use reliable sync for game state
+    }, true);
   };
   
-  // Handle suit selection for wild cards (Aces)
   const handleSuitSelect = (suit) => {
     if (!gameState || gameState.gamePhase !== GAME_PHASES.SUIT_SELECTION) {
       return;
@@ -434,76 +417,126 @@ const Game = () => {
     
     const playerIndex = players.findIndex(p => p.id === player.id);
     
-    // Only the player who played the Ace can select the suit
     if (playerIndex !== gameState.lastPlayerIndex) {
       return;
     }
     
     const newGameState = { ...gameState };
     
-    // Set the wild suit
     newGameState.wildSuit = suit;
     
-    // Return to regular play
     newGameState.gamePhase = GAME_PHASES.PLAYING;
     
-    // Add log
     newGameState.logs.push({
       message: `${player.getProfile().name} selected ${suit} as the active suit`,
       timestamp: Date.now()
     });
     
-    // Move to the next player
     newGameState.currentPlayerIndex = getNextPlayerIndex(
       playerIndex,
       players.length, 
       newGameState.direction
     );
     
-    // Update game state
-    setGameState(newGameState, true); // Use reliable sync for game state
+    setGameState(newGameState, true);
   };
   
-  // Handle pass turn button
   const handlePassTurn = () => {
     if (!gameState) return;
     
-    // Check if it's the player's turn
     const playerIndex = players.findIndex(p => p.id === player.id);
     
     if (gameState.currentPlayerIndex !== playerIndex) {
       return;
     }
     
-    // Check if the player has drawn a card this turn
     if (!hasDrawnThisTurn) {
-      // Cannot pass turn without drawing
+      return;
+    }
+    
+    if (gameState.gamePhase === GAME_PHASES.GURA) {
+      const playerHand = gameState.hands[playerIndex];
+      const hasGuraCard = playerHand.some(card => card.value === gameState.guraCardValue);
+      
+      if (hasGuraCard) {
+        const newGameState = { ...gameState };
+        newGameState.logs.push({
+          message: `${player.getProfile().name} must play their ${gameState.guraCardValue} card`,
+          timestamp: Date.now()
+        });
+        
+        setGameState(newGameState, true);
+        return;
+      }
+    }
+    
+    if (gameState.pendingGuraDecision) {
+      confirmGura(false);
       return;
     }
     
     const newGameState = { ...gameState };
     
-    // Log
     newGameState.logs.push({
       message: `${player.getProfile().name} passed their turn`,
       timestamp: Date.now()
     });
     
-    // Move to the next player
     newGameState.currentPlayerIndex = getNextPlayerIndex(
       playerIndex, 
       players.length, 
       newGameState.direction
     );
     
-    // Reset hasDrawnThisTurn for the next turn
     setHasDrawnThisTurn(false);
     
-    // Update game state
-    setGameState(newGameState, true); // Use reliable sync for game state
+    setGameState(newGameState, true);
   };
   
-  // Handle ending GURA round (only for the player who started it)
+  const confirmGura = (startGura) => {
+    if (!gameState || !gameState.pendingGuraDecision) {
+      return;
+    }
+    
+    const playerIndex = players.findIndex(p => p.id === player.id);
+    const newGameState = { ...gameState };
+    
+    newGameState.pendingGuraDecision = false;
+    
+    if (startGura) {
+      newGameState.gamePhase = GAME_PHASES.GURA;
+      newGameState.chainType = 'gura';
+      
+      newGameState.logs.push({
+        message: `${player.getProfile().name} started a GURA round with a ${newGameState.guraCardValue}!`,
+        timestamp: Date.now()
+      });
+      
+      newGameState.currentPlayerIndex = getNextPlayerIndex(
+        playerIndex,
+        players.length, 
+        newGameState.direction
+      );
+    } else {
+      newGameState.gamePhase = GAME_PHASES.PLAYING;
+      newGameState.guraStarterIndex = null;
+      newGameState.guraCardValue = null;
+      
+      newGameState.logs.push({
+        message: `${player.getProfile().name} decided not to start a GURA round`,
+        timestamp: Date.now()
+      });
+      
+      newGameState.currentPlayerIndex = getNextPlayerIndex(
+        playerIndex,
+        players.length, 
+        newGameState.direction
+      );
+    }
+    
+    setGameState(newGameState, true);
+  };
+
   const handleEndGura = () => {
     if (!gameState || gameState.gamePhase !== GAME_PHASES.GURA) {
       return;
@@ -511,49 +544,53 @@ const Game = () => {
     
     const playerIndex = players.findIndex(p => p.id === player.id);
     
-    // Only the player who started GURA can end it
     if (gameState.guraStarterIndex !== playerIndex) {
       return;
     }
     
     const newGameState = { ...gameState };
     
-    // End GURA round
+    const playerHand = newGameState.hands[playerIndex];
+    const guraCards = playerHand.filter(card => card.value === newGameState.guraCardValue);
+    
+    if (guraCards.length > 0) {
+      newGameState.logs.push({
+        message: `${player.getProfile().name} must play their last GURA card before ending the round`,
+        timestamp: Date.now()
+      });
+      
+      setGameState(newGameState, true);
+      return;
+    }
+    
     newGameState.gamePhase = GAME_PHASES.PLAYING;
     newGameState.chainType = null;
+    newGameState.guraCardValue = null;
     
-    // Add log
     newGameState.logs.push({
       message: `${player.getProfile().name} ended the GURA round`,
       timestamp: Date.now()
     });
     
-    // Give turn to the next player after the one who started GURA
     newGameState.currentPlayerIndex = getNextPlayerIndex(
       playerIndex,
       players.length, 
       newGameState.direction
     );
     
-    // Reset GURA starter
     newGameState.guraStarterIndex = null;
     
-    // Update game state
-    setGameState(newGameState, true); // Use reliable sync for game state
+    setGameState(newGameState, true);
   };
   
-  // Start a new game
   const startNewGame = () => {
     if (!isHost) return;
     
-    // Initialize new game
     const initialState = initializeGameState(players.length);
     
-    // Update game state
-    setGameState(initialState, true); // Use reliable sync for game state
+    setGameState(initialState, true);
   };
   
-  // If game state hasn't been initialized yet
   if (!gameState) {
     return (
       <div style={{ textAlign: 'center', padding: '50px' }}>
@@ -577,7 +614,6 @@ const Game = () => {
     );
   }
   
-  // Map players to a format the GameBoard can use
   const boardPlayers = players.map((p, index) => ({
     id: p.id,
     name: p.getProfile().name,
@@ -585,7 +621,6 @@ const Game = () => {
     isCurrentPlayer: index === gameState.currentPlayerIndex
   }));
   
-  // Show game over screen if there's a winner
   if (gameState.gamePhase === GAME_PHASES.GAME_OVER) {
     const winnerPlayer = players.find(p => p.id === gameState.winner);
     
@@ -623,7 +658,6 @@ const Game = () => {
       backgroundColor: '#fff',
       overflow: 'hidden'
     }}>
-      {/* Navbar with player information */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -661,7 +695,6 @@ const Game = () => {
         </div>
       </div>
 
-      {/* Turn indicator */}
       <div style={{
         padding: '5px 15px',
         backgroundColor: gameState.currentPlayerIndex === players.findIndex(p => p.id === player.id) 
@@ -677,7 +710,6 @@ const Game = () => {
           : `Waiting for ${players[gameState.currentPlayerIndex]?.getProfile().name || 'other player'} to play...`}
       </div>
       
-      {/* Game board */}
       <div style={{ padding: '10px', flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <GameBoard 
           discardPile={gameState.discardPile}
@@ -694,9 +726,11 @@ const Game = () => {
           isCurrentPlayer={gameState.currentPlayerIndex === players.findIndex(p => p.id === player.id)}
           lastPlayerIndex={gameState.lastPlayerIndex}
           playerIndex={players.findIndex(p => p.id === player.id)}
+          pendingGuraDecision={gameState.pendingGuraDecision}
+          onConfirmGura={confirmGura}
+          guraCardValue={gameState.guraCardValue}
         />
       
-        {/* Player's hand */}
         <div style={{ marginTop: 'auto', overflow: 'hidden' }}>
           {gameState.currentPlayerIndex === players.findIndex(p => p.id === player.id) && (
             <div style={{ 
@@ -706,7 +740,6 @@ const Game = () => {
               padding: '5px 10px',
               marginBottom: '5px' 
             }}>
-              {/* Display message if player drew from effect but still needs mandatory draw */}
               {drewFromEffect && !hasDrawnThisTurn && (
                 <div style={{
                   color: '#e76f51',
@@ -717,7 +750,6 @@ const Game = () => {
                 </div>
               )}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
-                {/* End GURA button (only visible for GURA starter during GURA phase) */}
                 {gameState.gamePhase === GAME_PHASES.GURA && 
                  gameState.guraStarterIndex === players.findIndex(p => p.id === player.id) && (
                   <button 

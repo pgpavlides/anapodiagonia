@@ -1,7 +1,7 @@
 import React from 'react';
 import Card from './Card';
 import { getCardImagePath, getSuitImagePath } from '../../game/utils';
-import { SUITS } from '../../game/types';
+import { SUITS, GAME_PHASES } from '../../game/types';
 
 const GameBoard = ({
   discardPile,
@@ -17,7 +17,10 @@ const GameBoard = ({
   players,
   isCurrentPlayer,
   lastPlayerIndex,
-  playerIndex
+  playerIndex,
+  pendingGuraDecision,
+  onConfirmGura,
+  guraCardValue
 }) => {
   const topCard = discardPile[discardPile.length - 1];
   
@@ -46,7 +49,7 @@ const GameBoard = ({
         )}
         
         {/* Message for other players during suit selection */}
-        {gamePhase === 'suit_selection' && lastPlayerIndex !== playerIndex && (
+        {gamePhase === GAME_PHASES.SUIT_SELECTION && lastPlayerIndex !== playerIndex && (
           <div style={{
             marginBottom: '15px',
             padding: '12px 15px',
@@ -66,8 +69,62 @@ const GameBoard = ({
           </div>
         )}
         
+        {/* GURA decision UI */}
+        {pendingGuraDecision && isCurrentPlayer && (
+          <div style={{
+            marginBottom: '15px',
+            padding: '15px',
+            backgroundColor: '#e76f51',
+            borderRadius: '10px',
+            textAlign: 'center',
+            boxShadow: '0 3px 6px rgba(0,0,0,0.2)',
+            color: 'white',
+            fontWeight: 'bold',
+            border: '2px solid #e76f51',
+            animation: 'pulse 1.5s infinite'
+          }}>
+            <p style={{ margin: '0 0 15px 0', fontSize: '18px' }}>
+              You played a {guraCardValue}. Start a GURA round?
+            </p>
+            <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+              <button 
+                onClick={() => onConfirmGura(true)}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#2a9d8f',
+                  border: 'none',
+                  borderRadius: '5px',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}
+              >
+                Start GURA
+              </button>
+              <button 
+                onClick={() => onConfirmGura(false)}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#264653',
+                  border: 'none',
+                  borderRadius: '5px',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}
+              >
+                Don't Start
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* Wild suit selection - only show to the player who played the Ace */}
-        {gamePhase === 'suit_selection' && lastPlayerIndex === playerIndex && (
+        {gamePhase === GAME_PHASES.SUIT_SELECTION && lastPlayerIndex === playerIndex && (
           <div style={{ 
             marginBottom: '15px',
             display: 'flex', 
