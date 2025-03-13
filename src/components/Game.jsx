@@ -143,7 +143,18 @@ const Game = () => {
           timestamp: Date.now()
         });
         
-        newCurrentPlayerIndex = playerIndex;
+        if (players.length === 2) {
+          // In 2-player games, the other player draws cards and gets their turn
+          newCurrentPlayerIndex = prevPlayer;
+          
+          newLogs.push({
+            message: `${players[prevPlayer].getProfile().name} continues their turn`,
+            timestamp: Date.now()
+          });
+        } else {
+          // In games with more players, the player who played the 2 gets to play again
+          newCurrentPlayerIndex = playerIndex;
+        }
         
         break;
         
@@ -237,6 +248,12 @@ const Game = () => {
         break;
         
       case 'gura':
+        // During an existing GURA round, just treat Kings/Queens as normal cards
+        if (gameState.gamePhase === GAME_PHASES.GURA) {
+          newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
+          break;
+        }
+        
         const hasSameValueCards = playerHand.some(c => c.value === card.value);
         
         if (hasSameValueCards) {
@@ -264,7 +281,32 @@ const Game = () => {
     }
     
     if (playerHand.length === 0) {
-      if (card.value === '7' && (newChainType === 'draw_chain' || effect.type === 'draw_chain')) {
+      // Special case for 2-player games: If the last card was 3, 8, or 9, they must draw a card
+      if (players.length === 2 && (card.value === '3' || card.value === '8' || card.value === '9')) {
+        // Force the player to draw a card instead of winning
+        newLogs.push({
+          message: `${player.getProfile().name} played their last card, but must draw another since it was a ${card.value}!`,
+          timestamp: Date.now()
+        });
+        
+        // Draw a card for the player
+        if (newGameState.deck.length > 0) {
+          const drawnCard = newGameState.deck.pop();
+          playerHand.push(drawnCard);
+          newHands[playerIndex] = playerHand; // Update the hand
+          
+          newLogs.push({
+            message: `${player.getProfile().name} draws a card and continues their turn`,
+            timestamp: Date.now()
+          });
+        }
+        
+        // The player continues their turn
+        newCurrentPlayerIndex = playerIndex;
+        setHasDrawnThisTurn(true); // Mark as having drawn a card
+      }
+      // Special case: If the last card played was a 7 and we're in a draw chain
+      else if (card.value === '7' && (newChainType === 'draw_chain' || effect.type === 'draw_chain')) {
         newLogs.push({
           message: `${player.getProfile().name} played their last card, but the next player must respond to the 7!`,
           timestamp: Date.now()
