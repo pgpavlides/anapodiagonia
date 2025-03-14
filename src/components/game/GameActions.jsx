@@ -20,13 +20,13 @@ const GameActions = ({
       padding: '5px 10px',
       marginBottom: '5px' 
     }}>
-      {drewFromEffect && !hasDrawnThisTurn && (
+      {!hasDrawnThisTurn && (
         <div style={{
           color: '#e76f51',
           fontWeight: 'bold',
           fontSize: '14px'
         }}>
-          You must still draw for your turn
+          You must draw a card for your turn
         </div>
       )}
       <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
@@ -64,7 +64,7 @@ const GameActions = ({
             cursor: hasDrawnThisTurn ? 'pointer' : 'not-allowed',
             boxShadow: hasDrawnThisTurn ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
           }}
-          title={hasDrawnThisTurn ? 'Pass your turn to the next player' : drewFromEffect ? 'You drew cards from an effect but must still draw for your turn' : 'You must draw a card before passing'}
+          title={hasDrawnThisTurn ? 'Pass your turn to the next player' : 'You must draw a card before passing'}
         >
           Pass Turn
         </button>

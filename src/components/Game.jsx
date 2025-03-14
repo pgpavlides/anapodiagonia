@@ -395,6 +395,11 @@ const Game = () => {
       return;
     }
     
+    // Prevent drawing more than once in a normal turn
+    if (hasDrawnThisTurn && gameState.drawCount === 0) {
+      return;
+    }
+    
     if (gameState.pendingGuraDecision) {
       confirmGura(false);
       return;
@@ -405,6 +410,7 @@ const Game = () => {
     const playerHand = [...newHands[playerIndex]];
     
     if (gameState.drawCount > 0) {
+      // Drawing for an effect (mandatory)
       for (let i = 0; i < gameState.drawCount; i++) {
         if (newGameState.deck.length > 0) {
           const drawnCard = newGameState.deck.pop();
@@ -426,6 +432,7 @@ const Game = () => {
       });
       
     } else {
+      // Normal draw for turn (once per turn)
       if (newGameState.deck.length > 0) {
         const drawnCard = newGameState.deck.pop();
         playerHand.push(drawnCard);

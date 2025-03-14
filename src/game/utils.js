@@ -66,19 +66,25 @@ export const canPlayCard = (currentCard, playedCard, wildSuit = null) => {
   // Handle null cards
   if (!currentCard || !playedCard) return false;
   
-  // If it's a wild card (Ace), it can be played on any card
-  if (playedCard.value === VALUES.ACE) {
-    return true;
+  // If current top card is an ACE with a selected suit
+  if (currentCard.value === VALUES.ACE && wildSuit) {
+    // If player is trying to play another ACE
+    if (playedCard.value === VALUES.ACE) {
+      // Only allow if the ACE matches the selected wild suit
+      return playedCard.suit === wildSuit;
+    }
+    
+    // For non-ACE cards, the card must match the wild suit
+    return playedCard.suit === wildSuit;
   }
   
-  // If current top card is wild and a suit was selected
-  if (currentCard.value === VALUES.ACE && wildSuit) {
-    return playedCard.suit === wildSuit || playedCard.value === VALUES.ACE;
+  // If trying to play a wild card (Ace) on a non-ACE
+  if (playedCard.value === VALUES.ACE) {
+    // ACE can be played on any card that's not another ACE
+    return currentCard.value !== VALUES.ACE;
   }
   
   // Standard matching rules: same suit (shape) or same value
-  // As per the rule clarification, shapes (suits) can be played on top of each other
-  // regardless of the card value
   return (
     playedCard.suit === currentCard.suit || 
     playedCard.value === currentCard.value

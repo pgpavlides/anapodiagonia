@@ -207,14 +207,16 @@ const GameBoard = ({
                 position: 'absolute',
                 top: '5px',
                 right: '5px',
-                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
                 borderRadius: '50%',
-                width: '30px',
-                height: '30px',
+                width: '40px',
+                height: '40px',
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                padding: '3px'
+                padding: '5px',
+                border: '2px solid #e76f51',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
               }}>
                 <img 
                   src={getSuitImagePath(wildSuit)} 
