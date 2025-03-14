@@ -126,14 +126,22 @@ const Game = () => {
     
     if (gameState.gamePhase === GAME_PHASES.GURA && effect.type === 'gura') {
       const hasMoreGuraCards = playerHand.some(c => c.value === card.value);
+      const isGuraStarter = gameState.guraStarterIndex === playerIndex;
       
-      if (!hasMoreGuraCards) {
+      // End the GURA round if:
+      // 1. Player has no more GURA cards, OR
+      // 2. Player is the GURA starter and played their last King/Queen
+      if (!hasMoreGuraCards || isGuraStarter) {
         newGamePhase = GAME_PHASES.PLAYING;
         newChainType = null;
         newGameState.guraCardValue = null;
         
+        const endMessage = isGuraStarter 
+          ? `${player.getProfile().name} played their last GURA card as the starter, ending the round!` 
+          : `${player.getProfile().name} played their last GURA card, ending the round!`;
+        
         newLogs.push({
-          message: `${player.getProfile().name} played their last GURA card, ending the round!`,
+          message: endMessage,
           timestamp: Date.now()
         });
         
