@@ -45,7 +45,7 @@ const GameActions = ({
               display: 'flex',
               alignItems: 'center'
             }}
-            title="End the GURA round and start a new one if you have more cards"
+            title="Only the player who started the GURA round can end it"
           >
             <span style={{ fontSize: '16px', marginRight: '5px' }}>🃏</span>
             End GURA

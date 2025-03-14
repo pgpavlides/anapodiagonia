@@ -128,24 +128,25 @@ const Game = () => {
       const hasMoreGuraCards = playerHand.some(c => c.value === card.value);
       const isGuraStarter = gameState.guraStarterIndex === playerIndex;
       
-      // End the GURA round if:
-      // 1. Player has no more GURA cards, OR
-      // 2. Player is the GURA starter and played their last King/Queen
-      if (!hasMoreGuraCards || isGuraStarter) {
+      // Only the GURA starter can end the round, and only when they have no more GURA cards
+      if (!hasMoreGuraCards && isGuraStarter) {
         newGamePhase = GAME_PHASES.PLAYING;
         newChainType = null;
         newGameState.guraCardValue = null;
         
-        const endMessage = isGuraStarter 
-          ? `${player.getProfile().name} played their last GURA card as the starter, ending the round!` 
-          : `${player.getProfile().name} played their last GURA card, ending the round!`;
-        
         newLogs.push({
-          message: endMessage,
+          message: `${player.getProfile().name} played their last GURA card, ending the round!`,
           timestamp: Date.now()
         });
         
         newGameState.guraStarterIndex = null;
+      }
+      // If it's not the starter but they ran out of GURA cards, just note it but don't end GURA
+      else if (!hasMoreGuraCards && !isGuraStarter) {
+        newLogs.push({
+          message: `${player.getProfile().name} played their last GURA card, but the round continues!`,
+          timestamp: Date.now()
+        });
       }
     }
     
@@ -616,6 +617,7 @@ const Game = () => {
     
     const playerIndex = players.findIndex(p => p.id === player.id);
     
+    // Only the GURA starter can manually end the round
     if (gameState.guraStarterIndex !== playerIndex) {
       return;
     }
@@ -625,9 +627,10 @@ const Game = () => {
     const playerHand = newGameState.hands[playerIndex];
     const guraCards = playerHand.filter(card => card.value === newGameState.guraCardValue);
     
+    // If the starter still has GURA cards, they must play them all first
     if (guraCards.length > 0) {
       newGameState.logs.push({
-        message: `${player.getProfile().name} must play their last GURA card before ending the round`,
+        message: `${player.getProfile().name} must play all their ${newGameState.guraCardValue} cards before ending the round`,
         timestamp: Date.now()
       });
       
@@ -635,6 +638,7 @@ const Game = () => {
       return;
     }
     
+    // All conditions satisfied - end the GURA round
     newGameState.gamePhase = GAME_PHASES.PLAYING;
     newGameState.chainType = null;
     newGameState.guraCardValue = null;
