@@ -1,24 +1,4 @@
-    // Check if this was the player's last GURA card (regardless of who started it)
-    if (gameState.gamePhase === GAME_PHASES.GURA && effect.type === 'gura') {
-      
-      // Check if the player has any more cards of this value
-      const hasMoreGuraCards = playerHand.some(c => c.value === card.value);
-      
-      if (!hasMoreGuraCards) {
-        // Automatically end the GURA round
-        newGamePhase = GAME_PHASES.PLAYING;
-        newChainType = null;
-        newGameState.guraCardValue = null;
-        
-        newLogs.push({
-          message: `${player.getProfile().name} played their last GURA card, ending the round!`,
-          timestamp: Date.now()
-        });
-        
-        // Reset GURA starter
-        newGameState.guraStarterIndex = null;
-      }
-    }import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   myPlayer, 
   usePlayersList, 
@@ -31,6 +11,9 @@ import { GAME_PHASES } from '../game/types';
 import PlayerHand from './game/PlayerHand';
 import GameBoard from './game/GameBoard';
 import GameLogs from './game/GameLogs';
+import GameOver from './game/GameOver';
+import GameHeader from './game/GameHeader';
+import GameActions from './game/GameActions';
 
 const Game = () => {
   const player = myPlayer();
@@ -88,7 +71,6 @@ const Game = () => {
         canPlay = true;
       } else if (gameState.chainType === 'draw_ten' && card.value === 'jack' && 
                 (card.suit === 'hearts' || card.suit === 'diamonds')) {
-        // Allow red Jack to negate black Jack at any point
         canPlay = true;
       } else if (gameState.chainType === 'draw_ten_response' && card.value === 'jack' && 
                 (card.suit === 'hearts' || card.suit === 'diamonds')) {
@@ -142,6 +124,23 @@ const Game = () => {
       });
     }
     
+    if (gameState.gamePhase === GAME_PHASES.GURA && effect.type === 'gura') {
+      const hasMoreGuraCards = playerHand.some(c => c.value === card.value);
+      
+      if (!hasMoreGuraCards) {
+        newGamePhase = GAME_PHASES.PLAYING;
+        newChainType = null;
+        newGameState.guraCardValue = null;
+        
+        newLogs.push({
+          message: `${player.getProfile().name} played their last GURA card, ending the round!`,
+          timestamp: Date.now()
+        });
+        
+        newGameState.guraStarterIndex = null;
+      }
+    }
+    
     switch (effect.type) {
       case 'wild':
         newGamePhase = GAME_PHASES.SUIT_SELECTION;
@@ -168,7 +167,6 @@ const Game = () => {
         });
         
         if (players.length === 2) {
-          // In 2-player games, the other player draws cards and gets their turn
           newCurrentPlayerIndex = prevPlayer;
           
           newLogs.push({
@@ -176,7 +174,6 @@ const Game = () => {
             timestamp: Date.now()
           });
         } else {
-          // In games with more players, the player who played the 2 gets to play again
           newCurrentPlayerIndex = playerIndex;
         }
         
@@ -264,17 +261,14 @@ const Game = () => {
             timestamp: Date.now()
           });
           
-          // Reset the chain
           newChainType = null;
           newDrawCount = 0;
         }
         
-        // Red Jack plays end the turn even if used to negate a black Jack
         newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
         break;
         
       case 'gura':
-        // During an existing GURA round, just treat Kings/Queens as normal cards
         if (gameState.gamePhase === GAME_PHASES.GURA) {
           newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
           break;
@@ -307,19 +301,16 @@ const Game = () => {
     }
     
     if (playerHand.length === 0) {
-      // Special case for 2-player games: If the last card was 3, 8, or 9, they must draw a card
       if (players.length === 2 && (card.value === '3' || card.value === '8' || card.value === '9')) {
-        // Force the player to draw a card instead of winning
         newLogs.push({
           message: `${player.getProfile().name} played their last card, but must draw another since it was a ${card.value}!`,
           timestamp: Date.now()
         });
         
-        // Draw a card for the player
         if (newGameState.deck.length > 0) {
           const drawnCard = newGameState.deck.pop();
           playerHand.push(drawnCard);
-          newHands[playerIndex] = playerHand; // Update the hand
+          newHands[playerIndex] = playerHand;
           
           newLogs.push({
             message: `${player.getProfile().name} draws a card and continues their turn`,
@@ -327,11 +318,9 @@ const Game = () => {
           });
         }
         
-        // The player continues their turn
         newCurrentPlayerIndex = playerIndex;
-        setHasDrawnThisTurn(true); // Mark as having drawn a card
+        setHasDrawnThisTurn(true);
       }
-      // Special case: If the last card played was a 7 and we're in a draw chain
       else if (card.value === '7' && (newChainType === 'draw_chain' || effect.type === 'draw_chain')) {
         newLogs.push({
           message: `${player.getProfile().name} played their last card, but the next player must respond to the 7!`,
@@ -690,74 +679,12 @@ const Game = () => {
   }));
   
   if (gameState.gamePhase === GAME_PHASES.GAME_OVER) {
-    const winnerPlayer = players.find(p => p.id === gameState.winner);
-    
     return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '50px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        backgroundColor: '#2a9d8f', // Changed to a brighter teal background
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        zIndex: 100
-      }}>
-        <div style={{
-          backgroundColor: '#e76f51', // Orange background for the message box
-          padding: '60px 80px',
-          borderRadius: '20px',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
-          width: '90%',
-          maxWidth: '600px',
-          border: '5px solid #f4a261'
-        }}>
-          <h2 style={{ 
-            fontSize: '72px', 
-            color: '#ffffff',
-            margin: '0 0 30px 0',
-            textShadow: '3px 3px 6px rgba(0, 0, 0, 0.5)',
-            fontWeight: 'bold',
-            letterSpacing: '2px'
-          }}>GAME OVER!</h2>
-          <h3 style={{ 
-            fontSize: '48px', 
-            color: '#ffffff',
-            margin: '0 0 30px 0',
-            textShadow: '2px 2px 4px rgba(0, 0, 0, 0.5)',
-            fontWeight: 'bold'
-          }}>{winnerPlayer ? winnerPlayer.getProfile().name : 'Someone'} has won!</h3>
-          
-          {isHost && (
-            <button 
-              onClick={startNewGame}
-              style={{
-                padding: '20px 40px',
-                fontSize: '28px',
-                backgroundColor: '#264653',
-                color: 'white',
-                border: 'none',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                marginTop: '30px',
-                boxShadow: '0 6px 12px rgba(0, 0, 0, 0.3)',
-                transition: 'all 0.2s ease',
-                fontWeight: 'bold'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1a2f38'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#264653'}
-            >
-              Start New Game
-            </button>
-          )}
-        </div>
-      </div>
+      <GameOver 
+        winnerPlayer={players.find(p => p.id === gameState.winner)}
+        isHost={isHost}
+        onNewGame={startNewGame}
+      />
     );
   }
   
@@ -770,57 +697,14 @@ const Game = () => {
       backgroundColor: '#fff',
       overflow: 'hidden'
     }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '10px 20px',
-        backgroundColor: '#264653',
-        borderTopLeftRadius: '10px',
-        borderTopRightRadius: '10px',
-        color: 'white'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <span style={{ fontWeight: 'bold', marginRight: '15px' }}>Room: {roomCode}</span>
-          <span>Direction: {gameState.direction === 'clockwise' ? '→' : '←'}</span>
-        </div>
-        <div style={{ display: 'flex', gap: '15px' }}>
-          {boardPlayers.map((p) => (
-            <div 
-              key={p.id} 
-              style={{ 
-                padding: '5px 10px', 
-                backgroundColor: p.isCurrentPlayer ? '#f4a261' : '#e9c46a',
-                borderRadius: '5px',
-                color: '#264653',
-                fontWeight: p.isCurrentPlayer ? 'bold' : 'normal',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                minWidth: '80px'
-              }}
-            >
-              <span style={{ fontSize: '14px' }}>{p.name}</span>
-              <span style={{ fontSize: '12px' }}>{p.cards} cards</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{
-        padding: '5px 15px',
-        backgroundColor: gameState.currentPlayerIndex === players.findIndex(p => p.id === player.id) 
-          ? '#f4a261' 
-          : '#e9c46a',
-        textAlign: 'center',
-        fontWeight: 'bold',
-        color: '#264653',
-        borderBottom: '1px solid #eaeaea'
-      }}>
-        {gameState.currentPlayerIndex === players.findIndex(p => p.id === player.id) 
-          ? "It's your turn!" 
-          : `Waiting for ${players[gameState.currentPlayerIndex]?.getProfile().name || 'other player'} to play...`}
-      </div>
+      <GameHeader 
+        roomCode={roomCode}
+        direction={gameState.direction}
+        players={boardPlayers}
+        currentPlayerIndex={gameState.currentPlayerIndex}
+        myIndex={players.findIndex(p => p.id === player.id)}
+        playerNames={players.map(p => p.getProfile().name)}
+      />
       
       <div style={{ padding: '10px', flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <GameBoard 
@@ -844,66 +728,16 @@ const Game = () => {
         />
       
         <div style={{ marginTop: 'auto', overflow: 'hidden' }}>
-          {gameState.currentPlayerIndex === players.findIndex(p => p.id === player.id) && (
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: '5px 10px',
-              marginBottom: '5px' 
-            }}>
-              {drewFromEffect && !hasDrawnThisTurn && (
-                <div style={{
-                  color: '#e76f51',
-                  fontWeight: 'bold',
-                  fontSize: '14px'
-                }}>
-                  You must still draw for your turn
-                </div>
-              )}
-              <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
-                {gameState.gamePhase === GAME_PHASES.GURA && 
-                 gameState.guraStarterIndex === players.findIndex(p => p.id === player.id) && (
-                  <button 
-                    onClick={handleEndGura}
-                    style={{
-                      backgroundColor: '#e76f51',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      padding: '8px 15px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                    title="End the GURA round and start a new one if you have more cards"
-                  >
-                    <span style={{ fontSize: '16px', marginRight: '5px' }}>🃏</span>
-                    End GURA
-                  </button>
-                )}
-                <button 
-                  onClick={handlePassTurn}
-                  disabled={!hasDrawnThisTurn}
-                  style={{
-                  backgroundColor: hasDrawnThisTurn ? '#e9c46a' : '#cccccc',
-                  color: hasDrawnThisTurn ? '#264653' : '#666666',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '8px 15px',
-                  fontWeight: 'bold',
-                  cursor: hasDrawnThisTurn ? 'pointer' : 'not-allowed',
-                  boxShadow: hasDrawnThisTurn ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
-                }}
-                title={hasDrawnThisTurn ? 'Pass your turn to the next player' : drewFromEffect ? 'You drew cards from an effect but must still draw for your turn' : 'You must draw a card before passing'}
-              >
-                Pass Turn
-              </button>
-              </div>
-            </div>
-          )}
+          <GameActions 
+            isCurrentPlayer={gameState.currentPlayerIndex === players.findIndex(p => p.id === player.id)}
+            drewFromEffect={drewFromEffect}
+            hasDrawnThisTurn={hasDrawnThisTurn}
+            isGuraStarter={gameState.gamePhase === GAME_PHASES.GURA && 
+                          gameState.guraStarterIndex === players.findIndex(p => p.id === player.id)}
+            onEndGura={handleEndGura}
+            onPassTurn={handlePassTurn}
+          />
+          
           <PlayerHand 
             cards={myHand}
             onCardClick={handleCardClick}
