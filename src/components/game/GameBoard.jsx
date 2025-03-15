@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from './Card';
 import { getCardImagePath, getSuitImagePath } from '../../game/utils';
 import { SUITS, GAME_PHASES } from '../../game/types';
@@ -24,8 +24,27 @@ const GameBoard = ({
 }) => {
   const topCard = discardPile[discardPile.length - 1];
   
+  // Detect if we're on mobile using screen width
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Update mobile detection on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   return (
-    <div className="game-board" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="game-board" style={{ 
+      flex: 1, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      overflow: 'hidden',
+      borderRadius: '10px'
+    }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, justifyContent: 'center', width: '100%' }}>
         {/* Draw count if active */}
         {drawCount > 0 && (
@@ -183,16 +202,47 @@ const GameBoard = ({
           display: 'flex', 
           justifyContent: 'center', 
           alignItems: 'center',
-          gap: '50px',
-          marginBottom: '10px'
+          gap: isMobile ? '30px' : '50px', /* Adjust gap based on screen size */
+          marginBottom: '20px',
+          flexWrap: 'wrap', /* Allow wrapping on very small screens */
+          padding: isMobile ? '5px' : '10px'
         }}>
           {/* Draw pile */}
-          <div style={{ textAlign: 'center' }}>
-            <Card 
-              onClick={onDeckClick} 
-              card={null}
-            />
-            <p style={{ margin: '5px 0 0 0', fontSize: '14px' }}>{deckCount} cards left</p>
+          <div style={{ 
+            textAlign: 'center',
+            position: 'relative'
+          }}>
+            {isCurrentPlayer && (
+              <div style={{
+                position: 'absolute',
+                top: '-10px',
+                left: '-10px',
+                right: '-10px',
+                bottom: '-10px',
+                borderRadius: '15px',
+                animation: 'pulse-green 1.5s infinite',
+                zIndex: 0,
+                pointerEvents: 'none'
+              }} />
+            )}
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <Card 
+                onClick={onDeckClick} 
+                card={null}
+              />
+            </div>
+            <p style={{ 
+              margin: '5px 0 0 0', 
+              fontSize: isMobile ? '14px' : '16px', 
+              fontWeight: 'bold', 
+              color: deckCount === 0 ? '#e76f51' : '#264653',
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              padding: isMobile ? '3px 10px' : '4px 12px',
+              borderRadius: '6px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }}>
+              {deckCount} cards left{deckCount === 0 ? ' (empty)' : ''}
+            </p>
           </div>
           
           {/* Discard pile */}
@@ -205,12 +255,12 @@ const GameBoard = ({
             {wildSuit && topCard.value === '1' && (
               <div style={{
                 position: 'absolute',
-                top: '5px',
-                right: '5px',
+                top: '10px',
+                right: '10px',
                 backgroundColor: 'rgba(255, 255, 255, 0.9)',
                 borderRadius: '50%',
-                width: '40px',
-                height: '40px',
+                width: '50px',
+                height: '50px',
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
@@ -226,23 +276,34 @@ const GameBoard = ({
               </div>
             )}
             
-            <p style={{ margin: '5px 0 0 0', fontSize: '14px' }}>Discard Pile</p>
+            <p style={{ 
+              margin: '5px 0 0 0', 
+              fontSize: isMobile ? '14px' : '16px', 
+              fontWeight: 'bold', 
+              color: '#264653',
+              backgroundColor: 'rgba(255,255,255,0.9)',
+              padding: isMobile ? '3px 10px' : '4px 12px',
+              borderRadius: '6px',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+            }}>
+              Discard Pile ({discardPile.length})
+            </p>
           </div>
         </div>
         
         {/* Game status text */}
         {chainType && (
           <div style={{ 
-            padding: '10px 20px',
-            backgroundColor: chainType === 'gura' ? '#e76f51' : '#f8f9fa',
-            borderRadius: '5px',
-            marginTop: '10px',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-            fontSize: chainType === 'gura' ? '16px' : '14px',
-            fontWeight: 'bold',
-            color: chainType === 'gura' ? 'white' : '#333',
-            animation: chainType === 'gura' ? 'pulse 1.5s infinite' : 'none',
-            border: chainType === 'gura' ? '2px solid #e76f51' : 'none'
+          padding: '10px 20px',
+          backgroundColor: chainType === 'gura' ? '#e34a4a' : '#f8f9fa',
+          borderRadius: '5px',
+          marginTop: '10px',
+          boxShadow: chainType === 'gura' ? '0 3px 10px rgba(227, 74, 74, 0.5)' : '0 2px 5px rgba(0,0,0,0.2)',
+          fontSize: chainType === 'gura' ? '18px' : '14px',
+          fontWeight: 'bold',
+          color: chainType === 'gura' ? 'white' : '#333',
+          animation: chainType === 'gura' ? 'pulse 1.5s infinite' : 'none',
+          border: chainType === 'gura' ? '2px solid #c53030' : 'none'
           }}>
             {chainType === 'draw_chain' && (
               <p style={{ margin: 0 }}>Chain of 7s active! Play a 7 or draw cards.</p>
@@ -256,7 +317,7 @@ const GameBoard = ({
             {chainType === 'gura' && (
               <p style={{ margin: 0 }}>
                 <span style={{ fontSize: '18px', marginRight: '5px' }}>🃏</span>
-                GURA ROUND! Play a {topCard?.value === 'king' ? 'King' : 'Queen'} or draw a card.
+                GURA ROUND!
                 <span style={{ fontSize: '18px', marginLeft: '5px' }}>🃏</span>
               </p>
             )}

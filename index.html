@@ -17,8 +17,33 @@
     />
     <meta name="apple-mobile-web-app-title" content="ANAPA" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Anapodiagonia</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none; /* Prevent bounce effect */
+        -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+      }
+      #root {
+        height: 100%;
+      }
+      /* Hide scrollbars but keep functionality */
+      ::-webkit-scrollbar {
+        width: 0px;
+        height: 0px;
+        background: transparent;
+      }
+      /* Ensure cards fit in grid view */
+      .player-hand {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow-x: hidden !important;
+      }
+    </style>
     <script>
       // Suppress React 18 createRoot warning
       const originalConsoleWarn = console.warn;

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Lobby from './components/Lobby';
 import Game from './components/Game';
+import { GameProvider } from './game/logic/GameContext';
 import './App.css';
 
 function App() {
@@ -11,7 +12,9 @@ function App() {
       {!isInGame ? (
         <Lobby onJoin={() => setIsInGame(true)} />
       ) : (
-        <Game />
+        <GameProvider>
+          <Game />
+        </GameProvider>
       )}
     </div>
   );
