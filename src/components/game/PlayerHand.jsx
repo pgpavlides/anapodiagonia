@@ -176,24 +176,23 @@ const PlayerHand = ({
                         transition: 'transform 0.3s ease',
                         margin: '0',
                         marginRight: index < row.length - 1 ? '-40px' : '0', // More overlap on row
-                        zIndex: isPlayable ? 100 : 10 + index,
+                        zIndex: 10 + index, // Keep consistent z-index based on position
                         position: 'relative'
                       }}
+                  onMouseEnter={(e) => {
+                    if (isCurrentPlayer) {
+                      e.currentTarget.style.transform = `translateY(-15px)`;
+                      // Don't change z-index to keep cards in proper order
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (isCurrentPlayer) {
+                      e.currentTarget.style.transform = isPlayable ? 'translateY(-8px)' : 'none';
+                      // Don't reset z-index
+                    }
+                  }}
                     >
-                      {isPlayable && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '-4px',
-                          right: '-4px',
-                          width: '12px',
-                          height: '12px',
-                          borderRadius: '50%',
-                          backgroundColor: '#2a9d8f',
-                          border: '2px solid white',
-                          zIndex: 999,
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                        }} />
-                      )}
+                      {/* Green dot indicator removed */}
                       <Card
                         card={card}
                         onClick={() => onCardClick(card, cardIndex)}
@@ -226,24 +225,11 @@ const PlayerHand = ({
                     transition: 'transform 0.3s ease',
                     margin: '0',
                     marginRight: isMobile ? '-35px' : '-20px', // More overlap for mobile
-                    zIndex: isPlayable ? 100 : 10 + index,
+                    zIndex: 10 + index, // Keep consistent z-index based on position
                     position: 'relative'
                   }}
                 >
-                  {isPlayable && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '-4px',
-                      right: '-4px',
-                      width: '12px',
-                      height: '12px',
-                      borderRadius: '50%',
-                      backgroundColor: '#2a9d8f',
-                      border: '2px solid white',
-                      zIndex: 999,
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                    }} />
-                  )}
+                  {/* Green dot indicator removed */}
                   <Card
                     card={card}
                     onClick={() => onCardClick(card, index)}
