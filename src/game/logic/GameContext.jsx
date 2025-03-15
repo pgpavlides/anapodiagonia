@@ -14,6 +14,7 @@ export const GameProvider = ({ children }) => {
   const players = usePlayersList(true);
   
   const [gameState, setGameState] = useMultiplayerState('gameState', null);
+  const [playerWins, setPlayerWins] = useMultiplayerState('playerWins', {});
   const [myHand, setMyHand] = useState([]);
   const [hasDrawnThisTurn, setHasDrawnThisTurn] = useState(false);
   const [drewFromEffect, setDrewFromEffect] = useState(false);
@@ -30,6 +31,27 @@ export const GameProvider = ({ children }) => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+  
+  // Update wins when game state changes
+  useEffect(() => {
+    if (gameState && gameState.winner && gameState.gamePhase === 'game_over') {
+      // Check if this is a new win (not already counted)
+      const winnerId = gameState.winner;
+      const currentWins = playerWins[winnerId] || 0;
+      
+      // Update the wins for the player
+      setPlayerWins({
+        ...playerWins,
+        [winnerId]: currentWins + 1
+      });
+      
+      // Log the win
+      const winnerPlayer = players.find(p => p.id === winnerId);
+      if (winnerPlayer) {
+        console.log(`${winnerPlayer.getProfile().name} won! Total wins: ${currentWins + 1}`);
+      }
+    }
+  }, [gameState?.gamePhase, gameState?.winner, players, playerWins, setPlayerWins]);
   
   // Update my hand when game state changes
   useEffect(() => {
@@ -58,21 +80,16 @@ export const GameProvider = ({ children }) => {
     return gameState && gameState.currentPlayerIndex === getPlayerIndex();
   };
   
-  // Calculate player scores
+  // Calculate player scores based on wins
   const playerScores = useMemo(() => {
-    if (!gameState || !gameState.hands) return {};
-    
-    // Simple scoring: 1 point for each card in hand
     const scores = {};
-    players.forEach((p, index) => {
-      const handSize = gameState.hands[index] ? gameState.hands[index].length : 0;
-      // Lower cards = higher score
-      scores[p.id] = 100 - (handSize * 5);
-      if (scores[p.id] < 0) scores[p.id] = 0;
+    players.forEach(p => {
+      // Score is 100 points per win
+      scores[p.id] = (playerWins[p.id] || 0) * 100;
     });
     
     return scores;
-  }, [gameState, players]);
+  }, [players, playerWins]);
 
   // Create a data object for board players
   const boardPlayers = players.map((p, index) => ({
@@ -80,6 +97,7 @@ export const GameProvider = ({ children }) => {
     name: p.getProfile().name,
     cards: gameState?.hands?.[index] ? gameState.hands[index].length : 0,
     score: playerScores[p.id] || 0,
+    wins: playerWins[p.id] || 0,
     isCurrentPlayer: index === gameState?.currentPlayerIndex
   }));
   
@@ -99,7 +117,8 @@ export const GameProvider = ({ children }) => {
     getPlayerIndex,
     isMyTurn,
     boardPlayers,
-    playerScores
+    playerScores,
+    playerWins
   };
   
   return (

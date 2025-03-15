@@ -12,24 +12,25 @@ const PlayerHand = ({
   chainType 
 }) => {
   // State for card ordering
-  const [orderedCards, setOrderedCards] = useState([...cards]);
   const [sortType, setSortType] = useState('original'); // 'original', 'byValue', 'bySuit', 'byGroups'
+  
   // Detect if we're on mobile using screen width
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
   // State to track card viewing mode on mobile
   const [compactView, setCompactView] = useState(false);
   
-  // Order cards when they change or sort type changes
-  useEffect(() => {
-    sortCards(sortType);
-  }, [cards, sortType]);
-
-  // Card sorting function
-  const sortCards = useCallback((type) => {
+  // Get sorted cards - keeping the original intact
+  const getSortedCards = useCallback(() => {
+    if (!cards || cards.length === 0) return [];
+    
+    // Create a copy to avoid modifying the original
     const cardsCopy = [...cards];
     
-    if (type === 'byValue') {
+    if (sortType === 'original') {
+      return cardsCopy;
+    }
+    else if (sortType === 'byValue') {
       // Sort by value (Aces, Kings, Queens, etc.) and group in pairs
       const valueOrder = {
         'ace': 0, 'king': 1, 'queen': 2, 'jack': 3, 
@@ -37,7 +38,7 @@ const PlayerHand = ({
         '5': 9, '4': 10, '3': 11, '2': 12, '1': 0 // Ace is 1 in your game, so it should be first
       };
       
-      cardsCopy.sort((a, b) => {
+      return [...cardsCopy].sort((a, b) => {
         // First sort by value
         const valueA = valueOrder[a.value] !== undefined ? valueOrder[a.value] : parseInt(a.value);
         const valueB = valueOrder[b.value] !== undefined ? valueOrder[b.value] : parseInt(b.value);
@@ -49,7 +50,7 @@ const PlayerHand = ({
         return suitOrder[a.suit] - suitOrder[b.suit];
       });
     }
-    else if (type === 'byGroups') {
+    else if (sortType === 'byGroups') {
       // Sort by value only - group all kings together, all 7s together, etc.
       const valueOrder = {
         'ace': 0, 'king': 1, 'queen': 2, 'jack': 3, 
@@ -58,14 +59,14 @@ const PlayerHand = ({
       };
       
       // Group cards of the same value together first
-      cardsCopy.sort((a, b) => {
+      return [...cardsCopy].sort((a, b) => {
         // Sort by value
         const valueA = valueOrder[a.value] !== undefined ? valueOrder[a.value] : parseInt(a.value);
         const valueB = valueOrder[b.value] !== undefined ? valueOrder[b.value] : parseInt(b.value);
         return valueA - valueB;
       });
     } 
-    else if (type === 'bySuit') {
+    else if (sortType === 'bySuit') {
       // Sort by suit, then by value within each suit
       const valueOrder = {
         'ace': 0, 'king': 1, 'queen': 2, 'jack': 3, 
@@ -75,7 +76,7 @@ const PlayerHand = ({
       
       const suitOrder = { 'hearts': 0, 'diamonds': 1, 'clubs': 2, 'spades': 3 };
       
-      cardsCopy.sort((a, b) => {
+      return [...cardsCopy].sort((a, b) => {
         // First sort by suit
         const suitDiff = suitOrder[a.suit] - suitOrder[b.suit];
         if (suitDiff !== 0) return suitDiff;
@@ -86,10 +87,9 @@ const PlayerHand = ({
         return valueA - valueB;
       });
     }
-    // 'original' type just uses the cards as-is
     
-    setOrderedCards(cardsCopy);
-  }, [cards]);
+    return cardsCopy;
+  }, [cards, sortType]);
 
   // Update mobile detection on window resize
   useEffect(() => {
@@ -102,11 +102,19 @@ const PlayerHand = ({
     return () => window.removeEventListener('resize', handleResize);
   }, []);
   
-  // No automatic compact view change when card count changes
+  // Function to toggle compact view mode
+  const toggleCompactView = () => {
+    setCompactView(!compactView);
+  };
   
   // Handle sort button click
   const handleSortButtonClick = (type) => {
-    setSortType(type);
+    // Toggle sorting - if already using this sort, go back to original
+    if (sortType === type) {
+      setSortType('original');
+    } else {
+      setSortType(type);
+    }
   };
 
   // Determine which cards can be played
@@ -147,13 +155,7 @@ const PlayerHand = ({
   };
   
   const playableCards = getPlayableCards();
-  
-  // We use orderedCards instead of cards directly for rendering
-  
-  // Function to toggle compact view mode
-  const toggleCompactView = () => {
-    setCompactView(!compactView);
-  };
+  const sortedCards = getSortedCards();
   
   // This function gets the optimal number of cards to show per row
   const getCardsPerRow = () => {
@@ -172,16 +174,21 @@ const PlayerHand = ({
   
   // Create rows of cards for the compact view
   const cardRows = () => {
-    if (!compactView) return [orderedCards];
+    if (!compactView) return [sortedCards];
     
     const cardsPerRow = getCardsPerRow();
     const rows = [];
     
-    for (let i = 0; i < orderedCards.length; i += cardsPerRow) {
-      rows.push(orderedCards.slice(i, i + cardsPerRow));
+    for (let i = 0; i < sortedCards.length; i += cardsPerRow) {
+      rows.push(sortedCards.slice(i, i + cardsPerRow));
     }
     
     return rows;
+  };
+  
+  // Helper function to find the original index of a card
+  const findOriginalIndex = (card) => {
+    return cards.findIndex(c => c.id === card.id);
   };
   
   return (
@@ -247,8 +254,9 @@ const PlayerHand = ({
                 marginBottom: '2px'
               }}>
                 {row.map((card, index) => {
-                  const cardIndex = rowIndex * getCardsPerRow() + index;
                   const isPlayable = playableCards.some(c => c.id === card.id);
+                  const originalIndex = findOriginalIndex(card);
+                  
                   return (
                     <div 
                       key={card.id}
@@ -260,23 +268,22 @@ const PlayerHand = ({
                         zIndex: 10 + index, // Keep consistent z-index based on position
                         position: 'relative'
                       }}
-                  onMouseEnter={(e) => {
-                    if (isCurrentPlayer) {
-                      e.currentTarget.style.transform = `translateY(-15px)`;
-                      // Don't change z-index to keep cards in proper order
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (isCurrentPlayer) {
-                      e.currentTarget.style.transform = isPlayable ? 'translateY(-8px)' : 'none';
-                      // Don't reset z-index
-                    }
-                  }}
+                      onMouseEnter={(e) => {
+                        if (isCurrentPlayer) {
+                          e.currentTarget.style.transform = `translateY(-15px)`;
+                          // Don't change z-index to keep cards in proper order
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (isCurrentPlayer) {
+                          e.currentTarget.style.transform = isPlayable ? 'translateY(-8px)' : 'none';
+                          // Don't reset z-index
+                        }
+                      }}
                     >
-                      {/* Green dot indicator removed */}
                       <Card
                         card={card}
-                        onClick={() => onCardClick(card, cardIndex)}
+                        onClick={() => onCardClick(card, originalIndex)}
                         playable={isPlayable}
                         inHand={true}
                       />
@@ -296,8 +303,10 @@ const PlayerHand = ({
             padding: '4px',
             gap: isMobile ? '0px' : '2px'
           }}>
-            {orderedCards.map((card, index) => {
+            {sortedCards.map((card, index) => {
               const isPlayable = playableCards.some(c => c.id === card.id);
+              const originalIndex = findOriginalIndex(card);
+              
               return (
                 <div 
                   key={card.id}
@@ -310,10 +319,9 @@ const PlayerHand = ({
                     position: 'relative'
                   }}
                 >
-                  {/* Green dot indicator removed */}
                   <Card
                     card={card}
-                    onClick={() => onCardClick(card, index)}
+                    onClick={() => onCardClick(card, originalIndex)}
                     playable={isPlayable}
                     inHand={true}
                   />
@@ -401,7 +409,7 @@ const PlayerHand = ({
         alignItems: 'center',
         gap: '10px'
       }}>
-        <span>{orderedCards.length === 1 ? 'You have 1 card' : `You have ${orderedCards.length} cards`}</span>
+        <span>{cards.length === 1 ? 'You have 1 card' : `You have ${cards.length} cards`}</span>
         {isCurrentPlayer && (
           <span style={{
             color: playableCards.length > 0 ? '#2a9d8f' : '#e76f51',

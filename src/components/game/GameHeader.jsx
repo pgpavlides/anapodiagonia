@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useGameContext } from '../../game/logic';
 
 const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex, playerNames }) => {
-  const { playerScores, player } = useGameContext();
-  const myScore = playerScores[player?.id] || 0;
+  const { playerWins, player } = useGameContext();
+  const myWins = playerWins[player?.id] || 0;
   // Detect if we're on mobile using screen width
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
@@ -97,13 +97,13 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
               marginBottom: '-2px',
               textTransform: 'uppercase',
               textShadow: '0px 1px 1px rgba(0,0,0,0.4)'
-            }}>Score</span>
+            }}>WINS</span>
             <span style={{
               color: '#e9c46a',
               fontSize: isMobile ? '24px' : '32px',
               fontWeight: 'bold',
               textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
-            }}>{myScore}</span>
+            }}>{myWins}</span>
           </div>
         </div>
         
@@ -169,7 +169,7 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
                   borderRadius: '10px',
                   color: 'white'
                 }}>
-                  {p.score}
+                  {p.wins || 0} Wins
                 </span>
               </div>
             </div>
