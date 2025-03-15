@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Card from './Card';
 import { canPlayCard } from '../../game/utils';
 
@@ -11,12 +11,86 @@ const PlayerHand = ({
   isChainActive,
   chainType 
 }) => {
+  // State for card ordering
+  const [orderedCards, setOrderedCards] = useState([...cards]);
+  const [sortType, setSortType] = useState('original'); // 'original', 'byValue', 'bySuit', 'byGroups'
   // Detect if we're on mobile using screen width
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
   // State to track card viewing mode on mobile
   const [compactView, setCompactView] = useState(false);
   
+  // Order cards when they change or sort type changes
+  useEffect(() => {
+    sortCards(sortType);
+  }, [cards, sortType]);
+
+  // Card sorting function
+  const sortCards = useCallback((type) => {
+    const cardsCopy = [...cards];
+    
+    if (type === 'byValue') {
+      // Sort by value (Aces, Kings, Queens, etc.) and group in pairs
+      const valueOrder = {
+        'ace': 0, 'king': 1, 'queen': 2, 'jack': 3, 
+        '10': 4, '9': 5, '8': 6, '7': 7, '6': 8, 
+        '5': 9, '4': 10, '3': 11, '2': 12, '1': 0 // Ace is 1 in your game, so it should be first
+      };
+      
+      cardsCopy.sort((a, b) => {
+        // First sort by value
+        const valueA = valueOrder[a.value] !== undefined ? valueOrder[a.value] : parseInt(a.value);
+        const valueB = valueOrder[b.value] !== undefined ? valueOrder[b.value] : parseInt(b.value);
+        
+        if (valueA !== valueB) return valueA - valueB;
+        
+        // Then by suit to keep pairs together
+        const suitOrder = { 'hearts': 0, 'diamonds': 1, 'clubs': 2, 'spades': 3 };
+        return suitOrder[a.suit] - suitOrder[b.suit];
+      });
+    }
+    else if (type === 'byGroups') {
+      // Sort by value only - group all kings together, all 7s together, etc.
+      const valueOrder = {
+        'ace': 0, 'king': 1, 'queen': 2, 'jack': 3, 
+        '10': 4, '9': 5, '8': 6, '7': 7, '6': 8, 
+        '5': 9, '4': 10, '3': 11, '2': 12, '1': 0 // Ace is 1 in your game
+      };
+      
+      // Group cards of the same value together first
+      cardsCopy.sort((a, b) => {
+        // Sort by value
+        const valueA = valueOrder[a.value] !== undefined ? valueOrder[a.value] : parseInt(a.value);
+        const valueB = valueOrder[b.value] !== undefined ? valueOrder[b.value] : parseInt(b.value);
+        return valueA - valueB;
+      });
+    } 
+    else if (type === 'bySuit') {
+      // Sort by suit, then by value within each suit
+      const valueOrder = {
+        'ace': 0, 'king': 1, 'queen': 2, 'jack': 3, 
+        '10': 4, '9': 5, '8': 6, '7': 7, '6': 8, 
+        '5': 9, '4': 10, '3': 11, '2': 12, '1': 0 // Ace is 1 in your game, so it should be first
+      };
+      
+      const suitOrder = { 'hearts': 0, 'diamonds': 1, 'clubs': 2, 'spades': 3 };
+      
+      cardsCopy.sort((a, b) => {
+        // First sort by suit
+        const suitDiff = suitOrder[a.suit] - suitOrder[b.suit];
+        if (suitDiff !== 0) return suitDiff;
+        
+        // Then by value within each suit
+        const valueA = valueOrder[a.value] !== undefined ? valueOrder[a.value] : parseInt(a.value);
+        const valueB = valueOrder[b.value] !== undefined ? valueOrder[b.value] : parseInt(b.value);
+        return valueA - valueB;
+      });
+    }
+    // 'original' type just uses the cards as-is
+    
+    setOrderedCards(cardsCopy);
+  }, [cards]);
+
   // Update mobile detection on window resize
   useEffect(() => {
     const handleResize = () => {
@@ -30,6 +104,11 @@ const PlayerHand = ({
   
   // No automatic compact view change when card count changes
   
+  // Handle sort button click
+  const handleSortButtonClick = (type) => {
+    setSortType(type);
+  };
+
   // Determine which cards can be played
   const getPlayableCards = () => {
     if (!isCurrentPlayer) return [];
@@ -69,6 +148,8 @@ const PlayerHand = ({
   
   const playableCards = getPlayableCards();
   
+  // We use orderedCards instead of cards directly for rendering
+  
   // Function to toggle compact view mode
   const toggleCompactView = () => {
     setCompactView(!compactView);
@@ -91,13 +172,13 @@ const PlayerHand = ({
   
   // Create rows of cards for the compact view
   const cardRows = () => {
-    if (!compactView) return [cards];
+    if (!compactView) return [orderedCards];
     
     const cardsPerRow = getCardsPerRow();
     const rows = [];
     
-    for (let i = 0; i < cards.length; i += cardsPerRow) {
-      rows.push(cards.slice(i, i + cardsPerRow));
+    for (let i = 0; i < orderedCards.length; i += cardsPerRow) {
+      rows.push(orderedCards.slice(i, i + cardsPerRow));
     }
     
     return rows;
@@ -215,7 +296,7 @@ const PlayerHand = ({
             padding: '4px',
             gap: isMobile ? '0px' : '2px'
           }}>
-            {cards.map((card, index) => {
+            {orderedCards.map((card, index) => {
               const isPlayable = playableCards.some(c => c.id === card.id);
               return (
                 <div 
@@ -243,6 +324,72 @@ const PlayerHand = ({
         )}
       </div>
       
+      {/* Card sorting buttons */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        gap: '10px',
+        margin: '8px 0 5px 0'
+      }}>
+        <button 
+          onClick={() => handleSortButtonClick('byValue')}
+          style={{
+            backgroundColor: sortType === 'byValue' ? '#264653' : '#2a9d8f',
+            color: 'white',
+            border: 'none',
+            borderRadius: '10px',
+            padding: '4px 10px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          <span>Sort by Value</span>
+        </button>
+        <button 
+          onClick={() => handleSortButtonClick('bySuit')}
+          style={{
+            backgroundColor: sortType === 'bySuit' ? '#264653' : '#2a9d8f',
+            color: 'white',
+            border: 'none',
+            borderRadius: '10px',
+            padding: '4px 10px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          <span>Sort by Suit</span>
+        </button>
+        <button 
+          onClick={() => handleSortButtonClick('byGroups')}
+          style={{
+            backgroundColor: sortType === 'byGroups' ? '#264653' : '#2a9d8f',
+            color: 'white',
+            border: 'none',
+            borderRadius: '10px',
+            padding: '4px 10px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}
+        >
+          <span>Group by Value</span>
+        </button>
+      </div>
+
       {/* Card count info */}
       <div style={{
         textAlign: 'center',
@@ -254,7 +401,7 @@ const PlayerHand = ({
         alignItems: 'center',
         gap: '10px'
       }}>
-        <span>{cards.length === 1 ? 'You have 1 card' : `You have ${cards.length} cards`}</span>
+        <span>{orderedCards.length === 1 ? 'You have 1 card' : `You have ${orderedCards.length} cards`}</span>
         {isCurrentPlayer && (
           <span style={{
             color: playableCards.length > 0 ? '#2a9d8f' : '#e76f51',

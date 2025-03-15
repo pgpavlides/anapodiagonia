@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useMultiplayerState, myPlayer, usePlayersList } from 'playroomkit';
 import { initializeGameState } from '../utils';
 
@@ -58,11 +58,28 @@ export const GameProvider = ({ children }) => {
     return gameState && gameState.currentPlayerIndex === getPlayerIndex();
   };
   
+  // Calculate player scores
+  const playerScores = useMemo(() => {
+    if (!gameState || !gameState.hands) return {};
+    
+    // Simple scoring: 1 point for each card in hand
+    const scores = {};
+    players.forEach((p, index) => {
+      const handSize = gameState.hands[index] ? gameState.hands[index].length : 0;
+      // Lower cards = higher score
+      scores[p.id] = 100 - (handSize * 5);
+      if (scores[p.id] < 0) scores[p.id] = 0;
+    });
+    
+    return scores;
+  }, [gameState, players]);
+
   // Create a data object for board players
   const boardPlayers = players.map((p, index) => ({
     id: p.id,
     name: p.getProfile().name,
     cards: gameState?.hands?.[index] ? gameState.hands[index].length : 0,
+    score: playerScores[p.id] || 0,
     isCurrentPlayer: index === gameState?.currentPlayerIndex
   }));
   
@@ -81,7 +98,8 @@ export const GameProvider = ({ children }) => {
     isMobile,
     getPlayerIndex,
     isMyTurn,
-    boardPlayers
+    boardPlayers,
+    playerScores
   };
   
   return (

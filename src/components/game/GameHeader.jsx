@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useGameContext } from '../../game/logic';
 
 const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex, playerNames }) => {
+  const { playerScores, player } = useGameContext();
+  const myScore = playerScores[player?.id] || 0;
   // Detect if we're on mobile using screen width
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
@@ -16,6 +19,7 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
   return (
     <>
       <div style={{
+        position: 'relative',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: isMobile ? 'flex-start' : 'center',
@@ -63,6 +67,46 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
             </span>
           </div>
         </div>
+        
+        {/* Score display in the middle */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 15
+        }}>
+          <div style={{
+            background: 'linear-gradient(45deg, #2a9d8f, #264653)',
+            padding: isMobile ? '6px 12px' : '8px 16px',
+            borderRadius: '15px',
+            boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <span style={{
+              color: 'white',
+              fontSize: isMobile ? '10px' : '12px',
+              fontWeight: 'bold',
+              marginBottom: '-2px',
+              textTransform: 'uppercase',
+              textShadow: '0px 1px 1px rgba(0,0,0,0.4)'
+            }}>Score</span>
+            <span style={{
+              color: '#e9c46a',
+              fontSize: isMobile ? '24px' : '32px',
+              fontWeight: 'bold',
+              textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
+            }}>{myScore}</span>
+          </div>
+        </div>
+        
         <div style={{ 
           display: 'flex', 
           gap: isMobile ? '4px' : '10px',
@@ -103,16 +147,31 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
               }}>
                 {p.name}
               </span>
-              <span style={{ 
-                fontSize: isMobile ? '10px' : '12px',
-                fontWeight: p.isCurrentPlayer ? 'bold' : 'normal',
-                backgroundColor: p.isCurrentPlayer ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)',
-                padding: isMobile ? '1px 4px' : '2px 6px',
-                borderRadius: '10px',
+              <div style={{ 
+                display: 'flex',
+                gap: '4px',
                 marginTop: '2px'
               }}>
-                {p.cards} cards
-              </span>
+                <span style={{ 
+                  fontSize: isMobile ? '10px' : '12px',
+                  fontWeight: p.isCurrentPlayer ? 'bold' : 'normal',
+                  backgroundColor: p.isCurrentPlayer ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)',
+                  padding: isMobile ? '1px 4px' : '2px 6px',
+                  borderRadius: '10px'
+                }}>
+                  {p.cards} cards
+                </span>
+                <span style={{ 
+                  fontSize: isMobile ? '10px' : '12px',
+                  fontWeight: 'bold',
+                  backgroundColor: 'rgba(42, 157, 143, 0.8)',
+                  padding: isMobile ? '1px 4px' : '2px 6px',
+                  borderRadius: '10px',
+                  color: 'white'
+                }}>
+                  {p.score}
+                </span>
+              </div>
             </div>
           ))}
         </div>
