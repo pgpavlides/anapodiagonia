@@ -39,7 +39,7 @@ export const GameProvider = ({ children }) => {
       const winnerId = gameState.winner;
       const currentWins = playerWins[winnerId] || 0;
       
-      // Update the wins for the player
+      // Update the wins for the player (accumulate over the session)
       setPlayerWins({
         ...playerWins,
         [winnerId]: currentWins + 1
@@ -80,12 +80,12 @@ export const GameProvider = ({ children }) => {
     return gameState && gameState.currentPlayerIndex === getPlayerIndex();
   };
   
-  // Calculate player scores based on wins
+  // Calculate player scores based on total wins
   const playerScores = useMemo(() => {
     const scores = {};
     players.forEach(p => {
-      // Score is 100 points per win
-      scores[p.id] = (playerWins[p.id] || 0) * 100;
+      // Total number of wins per player
+      scores[p.id] = playerWins[p.id] || 0;
     });
     
     return scores;

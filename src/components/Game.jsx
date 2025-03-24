@@ -48,7 +48,9 @@ const Game = () => {
     isMobile,
     getPlayerIndex,
     isMyTurn,
-    boardPlayers
+    boardPlayers,
+    playerWins,
+    setPlayerWins
   } = useGameContext();
   
   // State for auto-play
@@ -114,37 +116,95 @@ const Game = () => {
     startNewGame(players, setGameState);
   };
   
-  // Auto-play secret function
+  // Set up console for autoplay commands
   useEffect(() => {
-    let autoPlayInterval;
-
-    const handleKeyPress = (e) => {
-      // Secret key 'P' to toggle auto-play
-      if (e.key === 'p' || e.key === 'P') {
-        // Toggle the auto-play status in state
-        setAutoPlayStatus(prevStatus => {
-          const newStatus = !prevStatus;
+    let consoleVisible = false;
+    let consoleInput = null;
+    let consoleContainer = null;
+    
+    // Show the console when pressing '\'
+    const keydownHandler = (e) => {
+      if (e.key === '\\') {
+        e.preventDefault();
+        
+        if (!consoleVisible) {
+          // Create console UI
+          consoleContainer = document.createElement('div');
+          consoleContainer.style.position = 'fixed';
+          consoleContainer.style.bottom = '0';
+          consoleContainer.style.left = '0';
+          consoleContainer.style.width = '100%';
+          consoleContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+          consoleContainer.style.color = '#fff';
+          consoleContainer.style.padding = '10px';
+          consoleContainer.style.zIndex = '9999';
+          consoleContainer.style.fontFamily = 'monospace';
           
-          if (newStatus) {
-            console.log('🤖 Auto-play activated!');
-            if (autoPlayInterval) clearInterval(autoPlayInterval);
+          const inputForm = document.createElement('form');
+          consoleInput = document.createElement('input');
+          consoleInput.style.width = '100%';
+          consoleInput.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+          consoleInput.style.color = '#fff';
+          consoleInput.style.border = '1px solid #666';
+          consoleInput.style.padding = '5px';
+          consoleInput.style.outline = 'none';
+          consoleInput.style.fontFamily = 'monospace';
+          consoleInput.placeholder = 'Type "arise" to start autoplay, "stop" to stop...';
+          
+          // Handle input submission
+          inputForm.onsubmit = (e) => {
+            e.preventDefault();
+            const command = consoleInput.value.trim().toLowerCase();
             
-            // Start a new interval
-            autoPlayInterval = setInterval(() => {
-              executeAutoPlay();
-            }, 1000);
-          } else {
-            console.log('🤖 Auto-play deactivated!');
-            if (autoPlayInterval) {
-              clearInterval(autoPlayInterval);
-              autoPlayInterval = null;
+            // Handle commands
+            if (command === 'arise') {
+              // Start autoplay
+              setAutoPlayStatus(true);
+              console.log('🤖 Autoplay activated!');
+            } 
+            else if (command === 'stop') {
+              // Stop autoplay
+              setAutoPlayStatus(false);
+              console.log('🤖 Autoplay deactivated.');
             }
-          }
+            
+            // Clear the input
+            consoleInput.value = '';
+          };
           
-          return newStatus;
-        });
+          inputForm.appendChild(consoleInput);
+          consoleContainer.appendChild(inputForm);
+          document.body.appendChild(consoleContainer);
+          consoleInput.focus();
+          
+          consoleVisible = true;
+        } else {
+          // Remove console UI
+          if (consoleContainer) {
+            document.body.removeChild(consoleContainer);
+            consoleContainer = null;
+            consoleInput = null;
+            consoleVisible = false;
+          }
+        }
       }
     };
+    
+    // Add event listener for keydown
+    window.addEventListener('keydown', keydownHandler);
+    
+    return () => {
+      // Clean up
+      window.removeEventListener('keydown', keydownHandler);
+      if (consoleContainer) {
+        document.body.removeChild(consoleContainer);
+      }
+    };
+  }, []);
+  
+  // Auto-play execution
+  useEffect(() => {
+    let autoPlayInterval;
     
     const executeAutoPlay = () => {
       // Only execute if auto-play is active
@@ -221,8 +281,6 @@ const Game = () => {
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    
     // Setup a watcher for auto-play status
     if (autoPlayStatus) {
       autoPlayInterval = setInterval(() => {
@@ -231,12 +289,24 @@ const Game = () => {
     }
     
     return () => {
-      window.removeEventListener('keydown', handleKeyPress);
       if (autoPlayInterval) {
         clearInterval(autoPlayInterval);
       }
     };
-  }, [autoPlayStatus, myHand, gameState, isMyTurn, getPlayerIndex, hasDrawnThisTurn, handleCardClick, handleDeckClick, handlePassTurn, handleConfirmGura, handleSuitSelect, handleEndGura]);
+  }, [
+    autoPlayStatus, 
+    myHand, 
+    gameState, 
+    isMyTurn, 
+    getPlayerIndex, 
+    hasDrawnThisTurn, 
+    handleCardClick,
+    handleDeckClick, 
+    handlePassTurn, 
+    handleConfirmGura, 
+    handleSuitSelect, 
+    handleEndGura
+  ]);
   
   // If game state is not loaded yet
   if (!gameState) {
@@ -304,6 +374,7 @@ const Game = () => {
         currentPlayerIndex={gameState.currentPlayerIndex}
         myIndex={playerIndex}
         playerNames={players.map(p => p.getProfile().name)}
+        autoPlayStatus={autoPlayStatus}
       />
       
       {/* Game board */}

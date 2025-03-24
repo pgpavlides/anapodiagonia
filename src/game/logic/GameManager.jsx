@@ -7,6 +7,7 @@ import { GAME_PHASES } from '../types';
 export const startNewGame = (players, setGameState) => {
   const initialState = initializeGameState(players.length);
   setGameState(initialState, true);
+  // We don't reset player wins anymore as they accumulate over the session
 };
 
 // Get animation styles for the win notification

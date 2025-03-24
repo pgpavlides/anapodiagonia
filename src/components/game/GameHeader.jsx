@@ -1,23 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useGameContext } from '../../game/logic';
 
-// Robot icon SVG for the autoplay button
-const RobotIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="11" width="18" height="10" rx="2" />
-    <circle cx="12" cy="5" r="2" />
-    <path d="M12 7v4" />
-    <line x1="8" y1="16" x2="8" y2="16" />
-    <line x1="16" y1="16" x2="16" y2="16" />
-  </svg>
-);
-
-const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex, playerNames }) => {
+const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex, playerNames, autoPlayStatus }) => {
   const { playerWins, player } = useGameContext();
   const myWins = playerWins[player?.id] || 0;
   
-  // State for autoplay functionality
-  const [autoPlayEnabled, setAutoPlayEnabled] = useState(false);
+  // State for autoplay notifications
   const [showAutoPlayNotification, setShowAutoPlayNotification] = useState(false);
   
   // Detect if we're on mobile using screen width
@@ -30,33 +18,16 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
       key: 'p',
       bubbles: true
     });
-    document.dispatchEvent(event);
+    window.dispatchEvent(event);
     
-    // Toggle local state for UI
-    setAutoPlayEnabled(prev => {
-      const newStatus = !prev;
-      // Show notification
-      setShowAutoPlayNotification(true);
-      setTimeout(() => setShowAutoPlayNotification(false), 2000);
-      return newStatus;
-    });
+    // Show notification
+    setShowAutoPlayNotification(true);
+    setTimeout(() => setShowAutoPlayNotification(false), 2000);
   };
   
-  // Listen for 'P' key press to sync the autoplay button state
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (e.key === 'p' || e.key === 'P') {
-        // Toggle button state
-        setAutoPlayEnabled(prev => !prev);
-        // Show notification
-        setShowAutoPlayNotification(true);
-        setTimeout(() => setShowAutoPlayNotification(false), 2000);
-      }
-    };
-    
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  // We don't need to listen for 'P' key press in the header component
+  // as the Game component already has this functionality
+  // and passes the autoPlayStatus as prop
   
   // Update mobile detection on window resize
   useEffect(() => {
@@ -76,7 +47,7 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
           top: '5%',
           left: '50%',
           transform: 'translateX(-50%)',
-          backgroundColor: autoPlayEnabled ? 'rgba(42, 157, 143, 0.9)' : 'rgba(231, 111, 81, 0.9)',
+          backgroundColor: autoPlayStatus ? 'rgba(42, 157, 143, 0.9)' : 'rgba(231, 111, 81, 0.9)',
           color: 'white',
           padding: '10px 15px',
           borderRadius: '10px',
@@ -89,7 +60,7 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
         }}>
           <span style={{ fontSize: '20px' }}>🤖</span>
           <span style={{ fontWeight: 'bold' }}>
-            {autoPlayEnabled ? 'Auto-play activated!' : 'Auto-play deactivated!'}
+            {autoPlayStatus ? 'Auto-play activated!' : 'Auto-play deactivated!'}
           </span>
         </div>
       )}
@@ -143,31 +114,7 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
             </span>
             </div>
         
-        {/* Autoplay button */}
-        <button
-          onClick={toggleAutoPlay}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '5px',
-            background: autoPlayEnabled ? 'linear-gradient(to right, #2a9d8f, #5fc4b5)' : 'rgba(255,255,255,0.2)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '16px',
-            padding: isMobile ? '3px 10px' : '5px 12px',
-            fontSize: isMobile ? '12px' : '14px',
-            cursor: 'pointer',
-            boxShadow: autoPlayEnabled ? '0 2px 5px rgba(42, 157, 143, 0.5)' : 'none',
-            position: 'absolute',
-            right: isMobile ? '10px' : '20px',
-            top: isMobile ? '45px' : '50px',
-            zIndex: 20
-          }}
-        >
-          <RobotIcon />
-          <span>{autoPlayEnabled ? 'Auto: ON' : 'Auto: OFF'}</span>
-        </button>
+
         </div>
         
         {/* Score display in the middle */}
@@ -180,7 +127,8 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
           left: '50%',
           top: '50%',
           transform: 'translate(-50%, -50%)',
-          zIndex: 15
+          zIndex: 15,
+          gap: '8px'
         }}>
           <div style={{
             background: 'linear-gradient(45deg, #2a9d8f, #264653)',
@@ -199,7 +147,7 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
               marginBottom: '-2px',
               textTransform: 'uppercase',
               textShadow: '0px 1px 1px rgba(0,0,0,0.4)'
-            }}>WINS</span>
+            }}>SCORE</span>
             <span style={{
               color: '#e9c46a',
               fontSize: isMobile ? '24px' : '32px',
@@ -271,7 +219,7 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
                   borderRadius: '10px',
                   color: 'white'
                 }}>
-                  {p.wins || 0} Wins
+                  {p.wins || 0} {p.wins === 1 ? 'Win' : 'Wins'}
                 </span>
               </div>
             </div>
