@@ -51,8 +51,7 @@ const Game = () => {
     boardPlayers
   } = useGameContext();
   
-  // State for auto-play notification
-  const [showAutoPlayNotification, setShowAutoPlayNotification] = useState(false);
+  // State for auto-play
   const [autoPlayStatus, setAutoPlayStatus] = useState(false);
   
   const roomCode = getRoomCode();
@@ -125,10 +124,6 @@ const Game = () => {
         // Toggle the auto-play status in state
         setAutoPlayStatus(prevStatus => {
           const newStatus = !prevStatus;
-          
-          // Show notification
-          setShowAutoPlayNotification(true);
-          setTimeout(() => setShowAutoPlayNotification(false), 2000);
           
           if (newStatus) {
             console.log('🤖 Auto-play activated!');
@@ -290,31 +285,6 @@ const Game = () => {
     }}>
       <style>{animationStyles}</style>
       
-      {/* Auto-play notification */}
-      {showAutoPlayNotification && (
-        <div style={{
-          position: 'absolute',
-          top: '5%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          backgroundColor: autoPlayStatus ? 'rgba(42, 157, 143, 0.9)' : 'rgba(231, 111, 81, 0.9)',
-          color: 'white',
-          padding: '10px 15px',
-          borderRadius: '10px',
-          boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-          zIndex: 1000,
-          animation: 'fadeInOut 2s forwards',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px'
-        }}>
-          <span style={{ fontSize: '20px' }}>🤖</span>
-          <span style={{ fontWeight: 'bold' }}>
-            {autoPlayStatus ? 'Auto-play activated!' : 'Auto-play deactivated!'}
-          </span>
-        </div>
-      )}
-      
       {/* Win notification and confetti */}
       {isGameOver(gameState) && (
         <>
@@ -362,6 +332,7 @@ const Game = () => {
           pendingGuraDecision={gameState.pendingGuraDecision}
           onConfirmGura={handleConfirmGura}
           guraCardValue={gameState.guraCardValue}
+          hasManyGuraCards={gameState.hasManyGuraCards}
         />
       
         {/* Player hand and actions */}

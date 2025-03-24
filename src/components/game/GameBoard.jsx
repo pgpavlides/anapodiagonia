@@ -20,7 +20,8 @@ const GameBoard = ({
   playerIndex,
   pendingGuraDecision,
   onConfirmGura,
-  guraCardValue
+  guraCardValue,
+  hasManyGuraCards
 }) => {
   const topCard = discardPile[discardPile.length - 1];
   
@@ -103,9 +104,12 @@ const GameBoard = ({
             animation: 'pulse 1.5s infinite'
           }}>
             <p style={{ margin: '0 0 15px 0', fontSize: '18px' }}>
-              You played a {guraCardValue}. Start a GURA round?
+              {hasManyGuraCards ? 
+                `You played a ${guraCardValue} and have multiple in hand. Choose:` : 
+                `You played a ${guraCardValue}. Start a GURA round?`
+              }
             </p>
-            <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button 
                 onClick={() => onConfirmGura(true)}
                 style={{
@@ -136,7 +140,7 @@ const GameBoard = ({
                   boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                 }}
               >
-                Don't Start
+                {hasManyGuraCards ? 'Continue Playing' : 'Don\'t Start'}
               </button>
             </div>
           </div>

@@ -98,7 +98,7 @@ export const playCard = (card, index, gameState, player, players, setGameState, 
           timestamp: Date.now()
         });
       } else {
-        newCurrentPlayerIndex = playerIndex;
+        newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
       }
       
       break;
@@ -200,6 +200,9 @@ export const playCard = (card, index, gameState, player, players, setGameState, 
       
       const hasSameValueCards = playerHand.some(c => c.value === card.value);
       
+      // Count how many of the same card value they have in hand
+      const sameValueCardCount = playerHand.filter(c => c.value === card.value).length;
+      
       if (hasSameValueCards) {
         newGameState.guraCardValue = card.value;
         
@@ -208,10 +211,19 @@ export const playCard = (card, index, gameState, player, players, setGameState, 
         
         newGameState.guraStarterIndex = playerIndex;
         
-        newLogs.push({
-          message: `${player.getProfile().name} played a ${card.value}. They can start a GURA round!`,
-          timestamp: Date.now()
-        });
+        // Check if player has more than 2 of the same King/Queen
+        if (sameValueCardCount > 2) {
+          newGameState.hasManyGuraCards = true;
+          newLogs.push({
+            message: `${player.getProfile().name} played a ${card.value} and has ${sameValueCardCount} more. They can choose to start GURA or continue!`,
+            timestamp: Date.now()
+          });
+        } else {
+          newLogs.push({
+            message: `${player.getProfile().name} played a ${card.value}. They can start a GURA round!`,
+            timestamp: Date.now()
+          });
+        }
         
         newCurrentPlayerIndex = playerIndex;
       } else {

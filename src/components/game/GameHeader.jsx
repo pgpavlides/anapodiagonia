@@ -1,11 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { useGameContext } from '../../game/logic';
 
+// Robot icon SVG for the autoplay button
+const RobotIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="10" rx="2" />
+    <circle cx="12" cy="5" r="2" />
+    <path d="M12 7v4" />
+    <line x1="8" y1="16" x2="8" y2="16" />
+    <line x1="16" y1="16" x2="16" y2="16" />
+  </svg>
+);
+
 const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex, playerNames }) => {
   const { playerWins, player } = useGameContext();
   const myWins = playerWins[player?.id] || 0;
+  
+  // State for autoplay functionality
+  const [autoPlayEnabled, setAutoPlayEnabled] = useState(false);
+  const [showAutoPlayNotification, setShowAutoPlayNotification] = useState(false);
+  
   // Detect if we're on mobile using screen width
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // Toggle autoplay function
+  const toggleAutoPlay = () => {
+    // Trigger the same behavior as pressing 'P'
+    const event = new KeyboardEvent('keydown', {
+      key: 'p',
+      bubbles: true
+    });
+    document.dispatchEvent(event);
+    
+    // Toggle local state for UI
+    setAutoPlayEnabled(prev => {
+      const newStatus = !prev;
+      // Show notification
+      setShowAutoPlayNotification(true);
+      setTimeout(() => setShowAutoPlayNotification(false), 2000);
+      return newStatus;
+    });
+  };
+  
+  // Listen for 'P' key press to sync the autoplay button state
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'p' || e.key === 'P') {
+        // Toggle button state
+        setAutoPlayEnabled(prev => !prev);
+        // Show notification
+        setShowAutoPlayNotification(true);
+        setTimeout(() => setShowAutoPlayNotification(false), 2000);
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, []);
   
   // Update mobile detection on window resize
   useEffect(() => {
@@ -18,6 +69,31 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
   }, []);
   return (
     <>
+      {/* Auto-play notification */}
+      {showAutoPlayNotification && (
+        <div style={{
+          position: 'absolute',
+          top: '5%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          backgroundColor: autoPlayEnabled ? 'rgba(42, 157, 143, 0.9)' : 'rgba(231, 111, 81, 0.9)',
+          color: 'white',
+          padding: '10px 15px',
+          borderRadius: '10px',
+          boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+          zIndex: 1000,
+          animation: 'fadeInOut 2s forwards',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span style={{ fontSize: '20px' }}>🤖</span>
+          <span style={{ fontWeight: 'bold' }}>
+            {autoPlayEnabled ? 'Auto-play activated!' : 'Auto-play deactivated!'}
+          </span>
+        </div>
+      )}
+      
       <div style={{
         position: 'relative',
         display: 'flex',
@@ -54,18 +130,44 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
           }}>
             <span style={{ marginRight: '5px' }}>Direction:</span>
             <span style={{ 
-              fontWeight: 'bold',
-              fontSize: isMobile ? '16px' : '18px',
-              animation: 'pulse 1.5s infinite',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: isMobile ? '18px' : '22px',
-              height: isMobile ? '18px' : '22px'
+            fontWeight: 'bold',
+            fontSize: isMobile ? '16px' : '18px',
+            animation: 'pulse 1.5s infinite',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: isMobile ? '18px' : '22px',
+            height: isMobile ? '18px' : '22px'
             }}>
-              {direction === 'clockwise' ? '→' : '←'}
+            {direction === 'clockwise' ? '→' : '←'}
             </span>
-          </div>
+            </div>
+        
+        {/* Autoplay button */}
+        <button
+          onClick={toggleAutoPlay}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '5px',
+            background: autoPlayEnabled ? 'linear-gradient(to right, #2a9d8f, #5fc4b5)' : 'rgba(255,255,255,0.2)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '16px',
+            padding: isMobile ? '3px 10px' : '5px 12px',
+            fontSize: isMobile ? '12px' : '14px',
+            cursor: 'pointer',
+            boxShadow: autoPlayEnabled ? '0 2px 5px rgba(42, 157, 143, 0.5)' : 'none',
+            position: 'absolute',
+            right: isMobile ? '10px' : '20px',
+            top: isMobile ? '45px' : '50px',
+            zIndex: 20
+          }}
+        >
+          <RobotIcon />
+          <span>{autoPlayEnabled ? 'Auto: ON' : 'Auto: OFF'}</span>
+        </button>
         </div>
         
         {/* Score display in the middle */}
