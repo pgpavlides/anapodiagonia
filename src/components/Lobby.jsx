@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { insertCoin } from 'playroomkit';
 import { GAME_MODES } from '../game/types';
 import GameSettings from './lobby/GameSettings';
+import RulesModal from './game/RulesModal';
 
 // WebGL shader implementation
 const LobbyShader = () => {
@@ -327,6 +328,7 @@ const Lobby = ({ onJoin }) => {
   const [isInvite, setIsInvite] = useState(false);
   const [gameMode, setGameMode] = useState(GAME_MODES.CLASSIC);
   const [showSettings, setShowSettings] = useState(false);
+  const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
     // Check if the URL has a room code parameter or hash, indicating an invite
@@ -395,6 +397,13 @@ const Lobby = ({ onJoin }) => {
       {/* WebGL shader background */}
       <LobbyShader />
       
+      {/* Rules Modal */}
+      <RulesModal
+        isOpen={showRules}
+        onClose={() => setShowRules(false)}
+        gameMode={gameMode}
+      />
+      
       <div style={styles.contentWrapper}>
         <div style={styles.logoCard}>
           {/* App Logo */}
@@ -417,8 +426,8 @@ const Lobby = ({ onJoin }) => {
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
                   <button
                     onClick={() => {
-                      // Open rules in a new window or tab
-                      window.open('/rules.html', '_blank');
+                      setShowRules(true);
+                      setShowSettings(false);
                     }}
                     style={{
                       ...styles.saveButton,
