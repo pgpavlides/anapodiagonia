@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { insertCoin } from 'playroomkit';
+import { GAME_MODES } from '../game/types';
+import GameSettings from './lobby/GameSettings';
 
 // WebGL shader implementation
 const LobbyShader = () => {
@@ -23,62 +25,192 @@ const LobbyShader = () => {
       }
     `;
     
-    // Fragment shader (modified to be more green)
+    // Fragment shader with infinite cards and dark blue background
     const fragmentShaderSource = `
       precision mediump float;
       uniform vec2 iResolution;
       uniform float iTime;
       
-      #define SPIN_ROTATION -2.0
-      #define SPIN_SPEED 7.0
-      #define OFFSET vec2(0.0)
-      #define COLOUR_1 vec4(0.231, 0.871, 0.267, 1.0) // Green instead of red
-      #define COLOUR_2 vec4(0.106, 0.706, 0.420, 1.0) // Green-blue instead of blue
-      #define COLOUR_3 vec4(0.086, 0.145, 0.095, 1.0) // Dark green instead of dark blue
-      #define CONTRAST 3.5
-      #define LIGTHING 0.4
-      #define SPIN_AMOUNT 0.25
-      #define PIXEL_FILTER 745.0
-      #define SPIN_EASE 1.0
-      #define PI 3.14159265359
-      #define IS_ROTATE false
+      // Card size, corner radius, suit size, edge size
+      float Size = .165, Radius = .04, SuitSize = .04, E = .125;
       
-      vec4 effect(vec2 screenSize, vec2 screen_coords) {
-        float pixel_size = length(screenSize.xy) / PIXEL_FILTER;
-        vec2 uv = (floor(screen_coords.xy*(1./pixel_size))*pixel_size - 0.5*screenSize.xy)/length(screenSize.xy) - OFFSET;
-        float uv_len = length(uv);
+      // Card rectangle size
+      vec2 Aspect = vec2(1.7,1.2);
+      
+      // Dark blue background color
+      vec3 backgroundColor = vec3(0.02, 0.05, 0.15);
+      
+      // Suit colors
+      vec3 diamondColor = vec3(1.0, 0.0, 0.0);  // Red
+      vec3 heartColor = vec3(1.0, 0.0, 0.0);    // Red
+      vec3 clubColor = vec3(0.0, 0.0, 0.0);     // Black
+      vec3 spadeColor = vec3(0.0, 0.0, 0.0);    // Black
+      
+      // Diamond shape
+      bool Diamonds(float n, vec2 p, vec2 q) {
+        float A,B, x=p.x, y=p.y, X=abs(x-.07), Y=abs(y-.09);
+        A = min(X + y, x + abs(y-.05));
+        A = n < 8. ? min(X + y, q.y > 0. ? x + abs(q.y - 0.05) : 1.) : A;
+        A = n < 1. ? 1. :
+            n < 2. ? x + y :
+            n < 3. ? x + Y :
+            n < 4. ? x + min(y,Y) :
+            n < 5. ? X + Y :
+            n < 6. ? x + y :
+            n < 7. ? X + y : A;
+        B = n > 5. ? X + Y : A;
+        return min(A,B) < SuitSize;
+      }
+      
+      // Heart shape
+      bool Hearts(vec2 p) {
+        p.y -= 0.05;
+        float r = length(p);
+        if (r < 0.01) return true;
         
-        float speed = (SPIN_ROTATION*SPIN_EASE*0.2);
-        if(IS_ROTATE){
-           speed = iTime * speed;
+        float a = atan(p.y, p.x);
+        float b = 0.02 + 0.04 * pow(abs(sin(a * 7.0)), 0.5);
+        return r < b && p.y > -0.05;
+      }
+      
+      // Club shape
+      bool Clubs(vec2 p) {
+        p.y -= 0.02;
+        vec2 q = vec2(abs(p.x), p.y);
+        
+        // Three circles
+        float d1 = length(q - vec2(0.0, 0.03)) - 0.03;
+        float d2 = length(q - vec2(0.03, 0.0)) - 0.03;
+        float d3 = length(q - vec2(-0.03, 0.0)) - 0.03;
+        
+        // Stem
+        float d4 = max(abs(p.x) - 0.01, -(p.y + 0.05));
+        
+        return min(min(min(d1, d2), d3), d4) < 0.0;
+      }
+      
+      // Spade shape
+      bool Spades(vec2 p) {
+        p.y -= 0.02;
+        float r = length(p);
+        if (r < 0.01) return true;
+        
+        float a = atan(p.y, p.x);
+        float b = 0.02 + 0.04 * pow(abs(sin(a * 7.0)), 0.5);
+        
+        // Invert heart and add stem
+        if (p.y < 0.0 && r < b) return true;
+        if (abs(p.x) < 0.01 && p.y < -0.02 && p.y > -0.08) return true;
+        
+        return false;
+      }
+      
+      vec3 Card(vec2 w, float n, vec2 p, vec3 col) {
+        // Relative position scaled by card size
+        vec2 q = (w-p) * Aspect, r = abs(q);
+      
+        if (max(r.x, r.y) < Size) {
+          if (r.x < E || r.y < E) {
+            // Determine which suit to draw based on the card value
+            int suitType = int(mod(n, 4.0));
+            
+            if (suitType == 0 && Diamonds(n,r,q)) {
+              col = diamondColor;
+            }
+            else if (suitType == 1 && Hearts(r)) {
+              col = heartColor;
+            }
+            else if (suitType == 2 && Clubs(r)) {
+              col = clubColor;
+            }
+            else if (suitType == 3 && Spades(r)) {
+              col = spadeColor;
+            }
+            else {
+              col = vec3(1); // White card background
+            }
+          }
+          else if (length(r-E) < Radius) {
+            col = vec3(1); // White card corners
+          }
         }
-        speed += 302.2;
-        float new_pixel_angle = atan(uv.y, uv.x) + speed - SPIN_EASE*20.*(1.*SPIN_AMOUNT*uv_len + (1. - 1.*SPIN_AMOUNT));
-        vec2 mid = (screenSize.xy/length(screenSize.xy))/2.;
-        uv = (vec2((uv_len * cos(new_pixel_angle) + mid.x), (uv_len * sin(new_pixel_angle) + mid.y)) - mid);
         
-        uv *= 30.;
-        speed = iTime*(SPIN_SPEED);
-        vec2 uv2 = vec2(uv.x+uv.y);
+        return col;
+      }
+      
+      // Ray marching parameters
+      #define MAX_STEPS 100
+      #define MAX_DIST 100.0
+      #define SURF_DIST 0.001
+      
+      // Ray marching function for infinite cards
+      float GetDist(vec3 p) {
+        // Create an infinite grid of cards
+        vec3 q = mod(p + 0.5, 1.0) - 0.5;
+        return length(q) - 0.1; // Sphere approximation for cards
+      }
+      
+      float RayMarch(vec3 ro, vec3 rd) {
+        float dO = 0.0;
         
-        for(int i=0; i < 5; i++) {
-          uv2 += sin(max(uv.x, uv.y)) + uv;
-          uv  += 0.5*vec2(cos(5.1123314 + 0.353*uv2.y + speed*0.131121),sin(uv2.x - 0.113*speed));
-          uv  -= 1.0*cos(uv.x + uv.y) - 1.0*sin(uv.x*0.711 - uv.y);
+        for(int i = 0; i < MAX_STEPS; i++) {
+          vec3 p = ro + rd * dO;
+          float dS = GetDist(p);
+          dO += dS;
+          if(dO > MAX_DIST || dS < SURF_DIST) break;
         }
         
-        float contrast_mod = (0.25*CONTRAST + 0.5*SPIN_AMOUNT + 1.2);
-        float paint_res = min(2., max(0.,length(uv)*(0.035)*contrast_mod));
-        float c1p = max(0.,1. - contrast_mod*abs(1.-paint_res));
-        float c2p = max(0.,1. - contrast_mod*abs(paint_res));
-        float c3p = 1. - min(1., c1p + c2p);
-        float light = (LIGTHING - 0.2)*max(c1p*5. - 4., 0.) + LIGTHING*max(c2p*5. - 4., 0.);
-        return (0.3/CONTRAST)*COLOUR_1 + (1. - 0.3/CONTRAST)*(COLOUR_1*c1p + COLOUR_2*c2p + vec4(c3p*COLOUR_3.rgb, c3p*COLOUR_1.a)) + light;
+        return dO;
+      }
+      
+      void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+        // Normalized pixel coordinates
+        vec2 w = (fragCoord - .5*iResolution.xy) / iResolution.x;
+        
+        // Background color
+        vec3 col = backgroundColor;
+        
+        // Ray marching setup
+        vec3 ro = vec3(0, 0, -3); // Ray origin
+        vec3 rd = normalize(vec3(w, 1)); // Ray direction
+        
+        // Rotate ray origin for movement
+        float t = iTime * 0.3;
+        ro.x += sin(t) * 2.0;
+        ro.y += cos(t) * 1.0;
+        ro.z += sin(t * 0.5) * 2.0;
+        
+        // Create multiple hovering cards with different suits
+        for(int i = 0; i < 12; i++) {
+          float fi = float(i);
+          
+          // Create a grid of cards with different positions
+          float gridX = mod(fi, 4.0) - 1.5;
+          float gridY = floor(fi / 4.0) - 1.0;
+          
+          // Add movement to each card
+          vec2 cardPos = vec2(
+            gridX * 0.4 + sin(iTime * 0.3 + fi * 0.7) * 0.1,
+            gridY * 0.3 + cos(iTime * 0.2 + fi * 0.5) * 0.1
+          );
+          
+          // Add depth and rotation variation
+          float depth = 1.0 + sin(iTime * 0.15 + fi * 0.3) * 0.2;
+          cardPos *= depth;
+          
+          // Draw card with different values and suits
+          col = Card(w, fi, cardPos, col);
+        }
+        
+        // Add some subtle glow
+        col += vec3(0.05, 0.1, 0.2) * (0.5 + 0.5 * sin(iTime * 0.2));
+        
+        // Output to screen
+        fragColor = vec4(col, 1.0);
       }
       
       void main() {
-        vec2 uv = gl_FragCoord.xy/iResolution.xy;
-        gl_FragColor = effect(iResolution.xy, uv * iResolution.xy);
+        mainImage(gl_FragColor, gl_FragCoord.xy);
       }
     `;
     
@@ -176,34 +308,15 @@ const LobbyShader = () => {
   );
 };
 
-const CardFan = () => {
-  const cardTypes = [
-    'hearts_king',
-    'diamonds_queen',
-    'clubs_jack',
-    'spades_10',
-    'hearts_1'
-  ];
-  
+// Logo component
+const AppLogo = () => {
   return (
-    <div style={styles.cardFanContainer}>
-      {cardTypes.map((card, index) => (
-        <div 
-          key={card} 
-          style={{
-            ...styles.fanCardWrapper,
-            transform: `rotate(${(index - 2) * 10}deg)`,
-            zIndex: index + 1,
-            marginLeft: index > 0 ? '-40px' : '0'
-          }}
-        >
-          <img
-            src={`/playing_cards/${card}.svg`}
-            alt={card}
-            style={styles.fanCard}
-          />
-        </div>
-      ))}
+    <div style={styles.logoContainer}>
+      <img
+        src="/logo/anapodiagonia_logo.svg"
+        alt="Anapodiagonia Logo"
+        style={styles.appLogo}
+      />
     </div>
   );
 };
@@ -212,13 +325,22 @@ const Lobby = ({ onJoin }) => {
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
   const [isInvite, setIsInvite] = useState(false);
+  const [gameMode, setGameMode] = useState(GAME_MODES.CLASSIC);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
-    // Check if the URL has a room code parameter, indicating an invite
+    // Check if the URL has a room code parameter or hash, indicating an invite
     const urlParams = new URLSearchParams(window.location.search);
     const roomCode = urlParams.get('roomCode');
-    if (roomCode) {
+    const hashMatch = window.location.hash.match(/#r=([A-Z0-9]+)/);
+    
+    if (roomCode || hashMatch) {
       setIsInvite(true);
+      
+      // If it's a hash invite, automatically join the game
+      if (hashMatch) {
+        handleJoinGame();
+      }
     }
   }, []);
 
@@ -232,7 +354,13 @@ const Lobby = ({ onJoin }) => {
         maxPlayersPerRoom: 8, // Maximum 8 players per game
         // You'll get this from your PlayroomKit dashboard
         gameId: 'YOUR_GAME_ID', // Replace with your actual game ID
+        initialState: {
+          gameMode: gameMode
+        }
       });
+      
+      // Store the game mode in localStorage so it can be accessed by the Game component
+      localStorage.setItem('anapodiagonia_gameMode', gameMode);
       
       onJoin();
     } catch (err) {
@@ -269,11 +397,32 @@ const Lobby = ({ onJoin }) => {
       
       <div style={styles.contentWrapper}>
         <div style={styles.logoCard}>
-          <h1 style={styles.title}>ANAPODIAGONIA</h1>
-          <h2 style={styles.subtitle}>THE CARD GAME OF CHAOS</h2>
+          {/* App Logo */}
+          <AppLogo />
           
-          {/* Fan of 5 cards */}
-          <CardFan />
+          {/* Game mode selection modal */}
+          {showSettings && (
+            <div style={styles.modalOverlay}>
+              <div style={styles.modalContent}>
+                <div style={styles.modalHeader}>
+                  <h2 style={styles.modalTitle}>Game Settings</h2>
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    style={styles.closeButton}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <GameSettings gameMode={gameMode} setGameMode={setGameMode} />
+                <button
+                  onClick={() => setShowSettings(false)}
+                  style={styles.saveButton}
+                >
+                  Save Settings
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         
         {error && <p style={styles.error}>{error}</p>}
@@ -282,6 +431,16 @@ const Lobby = ({ onJoin }) => {
           {/* Square buttons next to each other */}
           {!isInvite ? (
             <>
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                style={styles.squareButton}
+              >
+                <div style={styles.buttonContent}>
+                  <span style={styles.buttonIcon}>⚙️</span>
+                  <span style={styles.buttonText}>SETTINGS</span>
+                </div>
+              </button>
+              
               <button
                 onClick={handleCreateGame}
                 disabled={isJoining}
@@ -343,16 +502,24 @@ const styles = {
     zIndex: 1
   },
   logoCard: {
-    backgroundColor: 'rgba(0, 30, 15, 0.7)',
+    backgroundColor: 'transparent', // Transparent background
     borderRadius: '20px',
     padding: '40px',
-    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.3)',
     width: '100%',
     textAlign: 'center',
     position: 'relative',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(75, 211, 75, 0.3)',
     marginBottom: '30px'
+  },
+  logoContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: '20px'
+  },
+  appLogo: {
+    width: '250px',
+    height: 'auto',
+    filter: 'drop-shadow(0 5px 15px rgba(0, 0, 0, 0.4))'
   },
   title: {
     color: '#4cfc50', // Bright green
@@ -415,8 +582,8 @@ const styles = {
     flex: 1,
     aspectRatio: '1/1',
     maxWidth: '200px',
-    backgroundColor: 'rgba(18, 75, 43, 0.8)',
-    border: '3px solid #4cfc50',
+    backgroundColor: 'rgba(30, 60, 100, 0.8)', // Blue instead of green
+    border: '3px solid rgba(100, 150, 255, 0.7)', // Light blue border
     borderRadius: '15px',
     padding: '20px',
     cursor: 'pointer',
@@ -432,7 +599,7 @@ const styles = {
     '&:hover': {
       transform: 'translateY(-5px)',
       boxShadow: '0 15px 30px rgba(0, 0, 0, 0.4)',
-      backgroundColor: 'rgba(28, 95, 63, 0.9)'
+      backgroundColor: 'rgba(40, 80, 130, 0.9)' // Darker blue on hover
     },
     '&:active': {
       transform: 'translateY(2px)',
@@ -460,6 +627,87 @@ const styles = {
     letterSpacing: '1px',
     textAlign: 'center',
     fontFamily: '"Trebuchet MS", Arial, sans-serif'
+  },
+  settingsButton: {
+    position: 'absolute',
+    top: '15px',
+    right: '15px',
+    backgroundColor: 'rgba(30, 60, 100, 0.8)', // Blue instead of green
+    color: 'white',
+    border: '2px solid rgba(100, 150, 255, 0.7)', // Light blue border
+    borderRadius: '8px',
+    padding: '8px 15px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '5px',
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.2)',
+    transition: 'all 0.2s ease'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    backdropFilter: 'blur(5px)'
+  },
+  modalContent: {
+    backgroundColor: 'rgba(10, 20, 40, 0.9)',
+    borderRadius: '15px',
+    padding: '25px',
+    width: '90%',
+    maxWidth: '500px',
+    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.4)',
+    border: '1px solid rgba(100, 150, 255, 0.3)',
+    position: 'relative',
+    animation: 'fadeIn 0.3s ease'
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '20px'
+  },
+  modalTitle: {
+    color: 'white',
+    margin: 0,
+    fontSize: '24px',
+    fontWeight: 'bold'
+  },
+  closeButton: {
+    backgroundColor: 'transparent',
+    border: 'none',
+    color: 'white',
+    fontSize: '24px',
+    cursor: 'pointer',
+    padding: '5px 10px',
+    borderRadius: '50%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    transition: 'all 0.2s ease'
+  },
+  saveButton: {
+    backgroundColor: 'rgba(30, 60, 100, 0.8)',
+    color: 'white',
+    border: '2px solid rgba(100, 150, 255, 0.7)',
+    borderRadius: '10px',
+    padding: '12px 25px',
+    fontSize: '16px',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    marginTop: '20px',
+    width: '100%',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 5px 15px rgba(0, 0, 0, 0.2)'
   }
 };
 

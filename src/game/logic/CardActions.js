@@ -1,5 +1,5 @@
 import { canPlayCard, getCardEffect, getNextPlayerIndex, shuffleDeck } from '../utils';
-import { GAME_PHASES } from '../types';
+import { GAME_PHASES, EFFECTS } from '../types';
 
 // Play a card
 export const playCard = (card, index, gameState, player, players, setGameState, setHasDrawnThisTurn) => {
@@ -20,7 +20,7 @@ export const playCard = (card, index, gameState, player, players, setGameState, 
     timestamp: Date.now()
   }];
   
-  const effect = getCardEffect(card);
+  const effect = getCardEffect(card, newGameState.gameMode);
   let newCurrentPlayerIndex = playerIndex;
   let newDirection = newGameState.direction;
   let newGamePhase = newGameState.gamePhase;
@@ -71,10 +71,10 @@ export const playCard = (card, index, gameState, player, players, setGameState, 
       newLastPlayerIndex = playerIndex;
       break;
       
-    case 'draw_two':
+    case 'draw_two': {
       const prevPlayer = getNextPlayerIndex(
-        playerIndex, 
-        players.length, 
+        playerIndex,
+        players.length,
         newDirection === 'clockwise' ? 'counter_clockwise' : 'clockwise'
       );
       
@@ -101,6 +101,64 @@ export const playCard = (card, index, gameState, player, players, setGameState, 
         newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
       }
       
+      break;
+    }
+      
+    // Chaos mode effects
+    case 'swap_hands':
+      // Enter player selection phase
+      newGamePhase = GAME_PHASES.PLAYER_SELECTION;
+      newGameState.pendingEffect = 'swap_hands';
+      newLastPlayerIndex = playerIndex;
+      
+      newLogs.push({
+        message: `${player.getProfile().name} played a 4 - Select an opponent to swap hands with`,
+        timestamp: Date.now()
+      });
+      
+      newCurrentPlayerIndex = playerIndex; // Keep turn with current player for selection
+      break;
+      
+    case 'steal_card':
+      // Enter player selection phase
+      newGamePhase = GAME_PHASES.PLAYER_SELECTION;
+      newGameState.pendingEffect = 'steal_card';
+      newLastPlayerIndex = playerIndex;
+      
+      newLogs.push({
+        message: `${player.getProfile().name} played a 5 - Select an opponent to take a card from`,
+        timestamp: Date.now()
+      });
+      
+      newCurrentPlayerIndex = playerIndex; // Keep turn with current player for selection
+      break;
+      
+    case 'swap_random':
+      // Enter player selection phase
+      newGamePhase = GAME_PHASES.PLAYER_SELECTION;
+      newGameState.pendingEffect = 'swap_random';
+      newLastPlayerIndex = playerIndex;
+      
+      newLogs.push({
+        message: `${player.getProfile().name} played a 6 - Select an opponent to swap a random card with`,
+        timestamp: Date.now()
+      });
+      
+      newCurrentPlayerIndex = playerIndex; // Keep turn with current player for selection
+      break;
+      
+    case 'see_hand':
+      // Enter player selection phase
+      newGamePhase = GAME_PHASES.PLAYER_SELECTION;
+      newGameState.pendingEffect = 'see_hand';
+      newLastPlayerIndex = playerIndex;
+      
+      newLogs.push({
+        message: `${player.getProfile().name} played a 10 - Select an opponent to see their hand`,
+        timestamp: Date.now()
+      });
+      
+      newCurrentPlayerIndex = playerIndex; // Keep turn with current player for selection
       break;
       
     case 'reverse':
@@ -198,36 +256,38 @@ export const playCard = (card, index, gameState, player, players, setGameState, 
         break;
       }
       
-      const hasSameValueCards = playerHand.some(c => c.value === card.value);
-      
-      // Count how many of the same card value they have in hand
-      const sameValueCardCount = playerHand.filter(c => c.value === card.value).length;
-      
-      if (hasSameValueCards) {
-        newGameState.guraCardValue = card.value;
+      {
+        const hasSameValueCards = playerHand.some(c => c.value === card.value);
         
-        newGameState.pendingGuraDecision = true;
-        startedGura = true;
+        // Count how many of the same card value they have in hand
+        const sameValueCardCount = playerHand.filter(c => c.value === card.value).length;
         
-        newGameState.guraStarterIndex = playerIndex;
-        
-        // Check if player has more than 2 of the same King/Queen
-        if (sameValueCardCount > 2) {
-          newGameState.hasManyGuraCards = true;
-          newLogs.push({
-            message: `${player.getProfile().name} played a ${card.value} and has ${sameValueCardCount} more. They can choose to start GURA or continue!`,
-            timestamp: Date.now()
-          });
+        if (hasSameValueCards) {
+          newGameState.guraCardValue = card.value;
+          
+          newGameState.pendingGuraDecision = true;
+          startedGura = true;
+          
+          newGameState.guraStarterIndex = playerIndex;
+          
+          // Check if player has more than 2 of the same King/Queen
+          if (sameValueCardCount > 2) {
+            newGameState.hasManyGuraCards = true;
+            newLogs.push({
+              message: `${player.getProfile().name} played a ${card.value} and has ${sameValueCardCount} more. They can choose to start GURA or continue!`,
+              timestamp: Date.now()
+            });
+          } else {
+            newLogs.push({
+              message: `${player.getProfile().name} played a ${card.value}. They can start a GURA round!`,
+              timestamp: Date.now()
+            });
+          }
+          
+          newCurrentPlayerIndex = playerIndex;
         } else {
-          newLogs.push({
-            message: `${player.getProfile().name} played a ${card.value}. They can start a GURA round!`,
-            timestamp: Date.now()
-          });
+          newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
         }
-        
-        newCurrentPlayerIndex = playerIndex;
-      } else {
-        newCurrentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newDirection);
       }
       break;
       
@@ -310,28 +370,30 @@ export const playCard = (card, index, gameState, player, players, setGameState, 
     chainType: startedGura ? (newGameState.pendingGuraDecision ? newChainType : 'gura') : newChainType,
     lastPlayerIndex: newLastPlayerIndex,
     logs: newLogs,
-    winner: newGamePhase === GAME_PHASES.GAME_OVER ? player.id : null
+    winner: newGamePhase === GAME_PHASES.GAME_OVER ? player.id : null,
+    pendingEffect: newGameState.pendingEffect || null
   }, true);
 };
 
 // Check if a card can be played
-export const canPlayCardNow = (card, gameState, playerIndex) => {
+export const canPlayCardNow = (card, gameState) => {
   const topCard = gameState.discardPile[gameState.discardPile.length - 1];
   
-  if (gameState.gamePhase === GAME_PHASES.SUIT_SELECTION) {
+  if (gameState.gamePhase === GAME_PHASES.SUIT_SELECTION ||
+      gameState.gamePhase === GAME_PHASES.PLAYER_SELECTION) {
     return false;
   } else if (gameState.gamePhase === GAME_PHASES.GURA) {
     return card.value === gameState.guraCardValue;
   } else if (gameState.drawCount > 0) {
     if (gameState.chainType === 'draw_chain' && card.value === '7') {
       return true;
-    } else if (gameState.chainType === 'draw_ten' && card.value === 'jack' && 
+    } else if (gameState.chainType === 'draw_ten' && card.value === 'jack' &&
               (card.suit === 'clubs' || card.suit === 'spades')) {
       return true;
-    } else if (gameState.chainType === 'draw_ten' && card.value === 'jack' && 
+    } else if (gameState.chainType === 'draw_ten' && card.value === 'jack' &&
               (card.suit === 'hearts' || card.suit === 'diamonds')) {
       return true;
-    } else if (gameState.chainType === 'draw_ten_response' && card.value === 'jack' && 
+    } else if (gameState.chainType === 'draw_ten_response' && card.value === 'jack' &&
               (card.suit === 'hearts' || card.suit === 'diamonds')) {
       return true;
     } else {
@@ -455,12 +517,7 @@ export const drawCard = (gameState, player, players, setGameState, setHasDrawnTh
       
       newGameState.currentPlayerIndex = playerIndex;
     } else {
-      const nextPlayerIndex = getNextPlayerIndex(
-        playerIndex, 
-        players.length, 
-        newGameState.direction
-      );
-      
+      // We don't need to calculate the next player index since we're not changing players
       newGameState.logs.push({
         message: `${player.getProfile().name} drew a card and doesn't have a ${newGameState.guraCardValue}`,
         timestamp: Date.now()
@@ -502,11 +559,129 @@ export const selectSuit = (suit, gameState, player, players, setGameState) => {
   
   newGameState.currentPlayerIndex = getNextPlayerIndex(
     playerIndex,
-    players.length, 
+    players.length,
     newGameState.direction
   );
   
   setGameState(newGameState, true);
+};
+
+// Select a player for Chaos mode effects
+export const selectPlayer = (targetPlayerIndex, gameState, player, players, setGameState) => {
+  if (!gameState || gameState.gamePhase !== GAME_PHASES.PLAYER_SELECTION) {
+    return;
+  }
+  
+  const playerIndex = players.findIndex(p => p.id === player.id);
+  
+  if (playerIndex !== gameState.lastPlayerIndex) {
+    return;
+  }
+  
+  // Don't allow selecting yourself
+  if (targetPlayerIndex === playerIndex) {
+    return;
+  }
+  
+  const newGameState = { ...gameState };
+  const newHands = [...newGameState.hands];
+  const playerHand = [...newHands[playerIndex]];
+  const targetPlayerHand = [...newHands[targetPlayerIndex]];
+  
+  const targetPlayerName = players[targetPlayerIndex].getProfile().name;
+  
+  // Apply the pending effect
+  switch (newGameState.pendingEffect) {
+    case 'swap_hands':
+      // Swap hands with the selected player
+      newHands[playerIndex] = targetPlayerHand;
+      newHands[targetPlayerIndex] = playerHand;
+      
+      newGameState.logs.push({
+        message: `${player.getProfile().name} swapped hands with ${targetPlayerName}!`,
+        timestamp: Date.now()
+      });
+      break;
+      
+    case 'steal_card':
+      // Take a random card from the selected player
+      if (targetPlayerHand.length > 0) {
+        const randomIndex = Math.floor(Math.random() * targetPlayerHand.length);
+        const stolenCard = targetPlayerHand.splice(randomIndex, 1)[0];
+        playerHand.push(stolenCard);
+        
+        newHands[playerIndex] = playerHand;
+        newHands[targetPlayerIndex] = targetPlayerHand;
+        
+        newGameState.logs.push({
+          message: `${player.getProfile().name} took a card from ${targetPlayerName}!`,
+          timestamp: Date.now()
+        });
+      } else {
+        newGameState.logs.push({
+          message: `${targetPlayerName} has no cards to take!`,
+          timestamp: Date.now()
+        });
+      }
+      break;
+      
+    case 'swap_random':
+      // Swap a random card with the selected player
+      if (playerHand.length > 0 && targetPlayerHand.length > 0) {
+        const randomPlayerIndex = Math.floor(Math.random() * playerHand.length);
+        const randomTargetIndex = Math.floor(Math.random() * targetPlayerHand.length);
+        
+        const playerCard = playerHand[randomPlayerIndex];
+        const targetCard = targetPlayerHand[randomTargetIndex];
+        
+        playerHand[randomPlayerIndex] = targetCard;
+        targetPlayerHand[randomTargetIndex] = playerCard;
+        
+        newHands[playerIndex] = playerHand;
+        newHands[targetPlayerIndex] = targetPlayerHand;
+        
+        newGameState.logs.push({
+          message: `${player.getProfile().name} swapped a random card with ${targetPlayerName}!`,
+          timestamp: Date.now()
+        });
+      } else {
+        newGameState.logs.push({
+          message: `Cannot swap cards - one player has no cards!`,
+          timestamp: Date.now()
+        });
+      }
+      break;
+      
+    case 'see_hand':
+      // Show the selected player's hand to everyone
+      newGameState.revealedHand = {
+        playerIndex: targetPlayerIndex,
+        playerName: targetPlayerName,
+        hand: targetPlayerHand,
+        revealedBy: player.getProfile().name,
+        showToAll: true,
+        timestamp: Date.now() + 10000 // Show for 10 seconds
+      };
+      
+      newGameState.logs.push({
+        message: `${player.getProfile().name} revealed ${targetPlayerName}'s hand to everyone!`,
+        timestamp: Date.now()
+      });
+      break;
+      
+    default:
+      break;
+  }
+  
+  // Reset and continue the game
+  newGameState.pendingEffect = null;
+  newGameState.gamePhase = GAME_PHASES.PLAYING;
+  newGameState.currentPlayerIndex = getNextPlayerIndex(playerIndex, players.length, newGameState.direction);
+  
+  setGameState({
+    ...newGameState,
+    hands: newHands
+  }, true);
 };
 
 // Pass the turn
@@ -536,11 +711,12 @@ export const passTurn = (gameState, player, players, setGameState, setHasDrawnTh
     const playerHand = gameState.hands[playerIndex];
     const hasGuraCard = playerHand.some(card => card.value === gameState.guraCardValue);
     
-    if (hasGuraCard && !hasDrawnThisTurn) {
-      // If the player has GURA cards and hasn't drawn yet, they must play one
+    // Check if player has GURA cards and should play one
+    if (hasGuraCard) {
+      // If the player has GURA cards, they should play one
       const newGameState = { ...gameState };
       newGameState.logs.push({
-        message: `${player.getProfile().name} must play their ${gameState.guraCardValue} card`,
+        message: `${player.getProfile().name} should play their ${gameState.guraCardValue} card`,
         timestamp: Date.now()
       });
       

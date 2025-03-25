@@ -126,8 +126,8 @@ export const getSuitImagePath = (suit) => {
   return `/playing_cards/${suit}_main.svg`;
 };
 
-// Get the effect of a card based on its value
-export const getCardEffect = (card) => {
+// Get the effect of a card based on its value and game mode
+export const getCardEffect = (card, gameMode = 'classic') => {
   // Handle null or undefined card
   if (!card) {
     return { type: 'none', description: 'No card effect' };
@@ -135,6 +135,21 @@ export const getCardEffect = (card) => {
   
   const { suit, value } = card;
   
+  // Special effects for Chaos mode
+  if (gameMode === 'chaos') {
+    switch (value) {
+      case VALUES.FOUR:
+        return { type: 'swap_hands', description: 'Swap hands with an opponent' };
+      case VALUES.FIVE:
+        return { type: 'steal_card', description: 'Take one card from an opponent' };
+      case VALUES.SIX:
+        return { type: 'swap_random', description: 'Swap a random card with an opponent' };
+      case VALUES.TEN:
+        return { type: 'see_hand', description: 'Reveal an opponent\'s hand to everyone' };
+    }
+  }
+  
+  // Standard effects for all modes
   switch (value) {
     case VALUES.ACE:
       return { type: 'wild', description: 'Can be played on any card and change the suit' };
@@ -163,7 +178,7 @@ export const getCardEffect = (card) => {
 };
 
 // Initialize game state
-export const initializeGameState = (numPlayers) => {
+export const initializeGameState = (numPlayers, gameMode = 'classic') => {
   // Create and shuffle the deck
   const deck = shuffleDeck(createDeck());
   
@@ -185,7 +200,9 @@ export const initializeGameState = (numPlayers) => {
     drawCount: 0,
     chainType: null,
     winner: null,
-    logs: [{ message: 'Game started', timestamp: Date.now() }]
+    gameMode: gameMode, // Add game mode to state
+    selectedPlayer: null, // For Chaos mode player selection
+    logs: [{ message: `Game started in ${gameMode.toUpperCase()} mode`, timestamp: Date.now() }]
   };
 
   // Apply effect of the first card
@@ -198,14 +215,16 @@ export const initializeGameState = (numPlayers) => {
     
     switch (effect.type) {
       case 'wild': // Ace
-        // We'll need to randomly select a suit since there's no player to choose
-        const suits = Object.values(SUITS);
-        const randomSuit = suits[Math.floor(Math.random() * suits.length)];
-        initialGameState.wildSuit = randomSuit;
-        initialGameState.logs.push({ 
-          message: `Initial wild card randomly selected ${randomSuit} as the active suit`, 
-          timestamp: Date.now() 
-        });
+        {
+          // We'll need to randomly select a suit since there's no player to choose
+          const suits = Object.values(SUITS);
+          const randomSuit = suits[Math.floor(Math.random() * suits.length)];
+          initialGameState.wildSuit = randomSuit;
+          initialGameState.logs.push({
+            message: `Initial wild card randomly selected ${randomSuit} as the active suit`,
+            timestamp: Date.now()
+          });
+        }
         break;
         
       case 'draw_two': // 2

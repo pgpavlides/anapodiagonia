@@ -10,6 +10,7 @@ const GameBoard = ({
   currentPlayerIndex,
   direction,
   onSuitSelect,
+  onPlayerSelect,
   gamePhase,
   wildSuit,
   drawCount,
@@ -21,7 +22,9 @@ const GameBoard = ({
   pendingGuraDecision,
   onConfirmGura,
   guraCardValue,
-  hasManyGuraCards
+  hasManyGuraCards,
+  pendingEffect,
+  gameState
 }) => {
   const topCard = discardPile[discardPile.length - 1];
   
@@ -148,9 +151,9 @@ const GameBoard = ({
         
         {/* Wild suit selection - only show to the player who played the Ace */}
         {gamePhase === GAME_PHASES.SUIT_SELECTION && lastPlayerIndex === playerIndex && (
-          <div style={{ 
+          <div style={{
             marginBottom: '15px',
-            display: 'flex', 
+            display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             padding: '15px',
@@ -164,8 +167,8 @@ const GameBoard = ({
             <h3 style={{ margin: '0 0 15px 0', fontSize: '18px' }}>SELECT A SUIT:</h3>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
               {Object.values(SUITS).map(suit => (
-                <div 
-                  key={suit} 
+                <div
+                  key={suit}
                   onClick={() => onSuitSelect(suit)}
                   style={{
                     cursor: 'pointer',
@@ -190,11 +193,138 @@ const GameBoard = ({
                     e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
                   }}
                 >
-                  <img 
-                    src={getSuitImagePath(suit)} 
-                    alt={suit} 
+                  <img
+                    src={getSuitImagePath(suit)}
+                    alt={suit}
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Player selection for Chaos mode effects */}
+        {gamePhase === GAME_PHASES.PLAYER_SELECTION && lastPlayerIndex === playerIndex && (
+          <div style={{
+            marginBottom: '15px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            padding: '15px',
+            backgroundColor: '#e76f51',
+            borderRadius: '10px',
+            boxShadow: '0 3px 6px rgba(0,0,0,0.2)',
+            color: 'white',
+            border: '2px solid #e76f51',
+            animation: 'pulse 1.5s infinite'
+          }}>
+            <h3 style={{ margin: '0 0 15px 0', fontSize: '18px' }}>
+              SELECT A PLAYER:
+              {pendingEffect === 'swap_hands' && ' (Swap Hands)'}
+              {pendingEffect === 'steal_card' && ' (Take a Card)'}
+              {pendingEffect === 'swap_random' && ' (Swap Random Card)'}
+              {pendingEffect === 'see_hand' && ' (See Hand)'}
+            </h3>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap' }}>
+              {players.map((player, idx) => (
+                idx !== playerIndex && (
+                  <div
+                    key={player.id}
+                    onClick={() => onPlayerSelect(idx)}
+                    style={{
+                      cursor: 'pointer',
+                      padding: '10px 15px',
+                      backgroundColor: 'white',
+                      color: '#264653',
+                      border: '3px solid #f4a261',
+                      borderRadius: '10px',
+                      transition: 'transform 0.2s, box-shadow 0.2s',
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.05)';
+                      e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.3)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+                    }}
+                  >
+                    <span style={{ fontSize: '18px' }}>👤</span>
+                    {player.name} ({player.cards} cards)
+                  </div>
+                )
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* Message for other players during player selection */}
+        {gamePhase === GAME_PHASES.PLAYER_SELECTION && lastPlayerIndex !== playerIndex && (
+          <div style={{
+            marginBottom: '15px',
+            padding: '12px 15px',
+            backgroundColor: '#e76f51',
+            borderRadius: '10px',
+            textAlign: 'center',
+            boxShadow: '0 3px 6px rgba(0,0,0,0.2)',
+            color: 'white',
+            fontWeight: 'bold',
+            border: '2px solid #e76f51',
+            animation: 'pulse 1.5s infinite'
+          }}>
+            <p style={{ margin: 0, fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: '18px', marginRight: '8px' }}>⏳</span>
+              Waiting for {lastPlayerIndex !== null && players[lastPlayerIndex] ? players[lastPlayerIndex].name : 'another player'} to select an opponent...
+            </p>
+          </div>
+        )}
+        
+        {/* Revealed hand display - shown to everyone */}
+        {gameState?.revealedHand && gameState.revealedHand.showToAll &&
+         gameState.revealedHand.timestamp > Date.now() && (
+          <div style={{
+            marginBottom: '15px',
+            padding: '15px',
+            backgroundColor: 'rgba(231, 111, 81, 0.9)',
+            borderRadius: '10px',
+            boxShadow: '0 3px 6px rgba(0,0,0,0.2)',
+            color: 'white',
+            border: '2px solid #e76f51',
+            animation: 'fadeInOut 10s forwards'
+          }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', textAlign: 'center' }}>
+              {gameState.revealedHand.revealedBy} revealed {gameState.revealedHand.playerName}'s Hand!
+            </h3>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: '5px'
+            }}>
+              {gameState.revealedHand.hand.map((card, idx) => (
+                <div key={idx} style={{
+                  width: '40px',
+                  height: '60px',
+                  backgroundColor: 'white',
+                  borderRadius: '5px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  color: card.suit === 'hearts' || card.suit === 'diamonds' ? 'red' : 'black',
+                  border: '1px solid #ccc',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}>
+                  <div>{card.value}</div>
+                  <div>{card.suit.charAt(0).toUpperCase()}</div>
                 </div>
               ))}
             </div>

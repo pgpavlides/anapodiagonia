@@ -6,11 +6,12 @@ import { GAME_PHASES } from '../game/types';
 import { useGameContext } from '../game/logic';
 
 // Import game logic
-import { 
-  playCard, 
+import {
+  playCard,
   canPlayCardNow,
   drawCard,
   selectSuit,
+  selectPlayer,
   passTurn,
   confirmGura,
   endGura
@@ -59,11 +60,22 @@ const Game = () => {
   const roomCode = getRoomCode();
   const isHost = useIsHost();
   
+  // Initialize game with correct game mode if not already set
+  useEffect(() => {
+    if (isHost && gameState && !gameState.gameMode) {
+      const savedGameMode = localStorage.getItem('anapodiagonia_gameMode') || 'classic';
+      setGameState({
+        ...gameState,
+        gameMode: savedGameMode
+      }, true);
+    }
+  }, [gameState, isHost, setGameState]);
+  
   // Handle card click
   const handleCardClick = (card, index) => {
     if (!isMyTurn()) return;
     
-    const canPlay = canPlayCardNow(card, gameState, getPlayerIndex());
+    const canPlay = canPlayCardNow(card, gameState);
     
     if (canPlay) {
       playCard(card, index, gameState, player, players, setGameState, setHasDrawnThisTurn);
@@ -85,6 +97,13 @@ const Game = () => {
   // Handle suit selection
   const handleSuitSelect = (suit) => {
     selectSuit(suit, gameState, player, players, setGameState);
+  };
+  
+  // Handle player selection for Chaos mode effects
+  const handlePlayerSelect = (targetPlayerIndex) => {
+    if (gameState.gamePhase === GAME_PHASES.PLAYER_SELECTION) {
+      selectPlayer(targetPlayerIndex, gameState, player, players, setGameState);
+    }
   };
   
   // Handle pass turn
@@ -113,7 +132,9 @@ const Game = () => {
   // Start a new game
   const handleStartNewGame = () => {
     if (!isHost) return;
-    startNewGame(players, setGameState);
+    // Get the game mode from localStorage or use the current game mode
+    const gameMode = localStorage.getItem('anapodiagonia_gameMode') || gameState?.gameMode || 'classic';
+    startNewGame(players, setGameState, gameMode);
   };
   
   // Set up console for autoplay commands
@@ -294,17 +315,18 @@ const Game = () => {
       }
     };
   }, [
-    autoPlayStatus, 
-    myHand, 
-    gameState, 
-    isMyTurn, 
-    getPlayerIndex, 
-    hasDrawnThisTurn, 
+    autoPlayStatus,
+    myHand,
+    gameState,
+    isMyTurn,
+    getPlayerIndex,
+    hasDrawnThisTurn,
     handleCardClick,
-    handleDeckClick, 
-    handlePassTurn, 
-    handleConfirmGura, 
-    handleSuitSelect, 
+    handleDeckClick,
+    handlePassTurn,
+    handleConfirmGura,
+    handleSuitSelect,
+    handlePlayerSelect,
     handleEndGura
   ]);
   
@@ -367,7 +389,7 @@ const Game = () => {
       )}
       
       {/* Game header */}
-      <GameHeader 
+      <GameHeader
         roomCode={roomCode}
         direction={gameState.direction}
         players={boardPlayers}
@@ -375,6 +397,7 @@ const Game = () => {
         myIndex={playerIndex}
         playerNames={players.map(p => p.getProfile().name)}
         autoPlayStatus={autoPlayStatus}
+        gameMode={gameState.gameMode || 'classic'}
       />
       
       {/* Game board */}
@@ -385,13 +408,14 @@ const Game = () => {
         flexDirection: 'column', 
         overflow: 'hidden' 
       }}>
-        <GameBoard 
+        <GameBoard
           discardPile={gameState.discardPile}
           deckCount={gameState.deck.length}
           onDeckClick={handleDeckClick}
           currentPlayerIndex={gameState.currentPlayerIndex}
           direction={gameState.direction}
           onSuitSelect={handleSuitSelect}
+          onPlayerSelect={handlePlayerSelect}
           gamePhase={gameState.gamePhase}
           wildSuit={gameState.wildSuit}
           drawCount={gameState.drawCount}
@@ -404,6 +428,8 @@ const Game = () => {
           onConfirmGura={handleConfirmGura}
           guraCardValue={gameState.guraCardValue}
           hasManyGuraCards={gameState.hasManyGuraCards}
+          pendingEffect={gameState.pendingEffect}
+          gameState={gameState}
         />
       
         {/* Player hand and actions */}

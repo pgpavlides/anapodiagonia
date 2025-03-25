@@ -4,8 +4,8 @@ import { initializeGameState } from '../utils';
 import { GAME_PHASES } from '../types';
 
 // Start a new game
-export const startNewGame = (players, setGameState) => {
-  const initialState = initializeGameState(players.length);
+export const startNewGame = (players, setGameState, gameMode = 'classic') => {
+  const initialState = initializeGameState(players.length, gameMode);
   setGameState(initialState, true);
   // We don't reset player wins anymore as they accumulate over the session
 };

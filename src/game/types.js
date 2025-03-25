@@ -43,7 +43,12 @@ export const EFFECTS = {
   REVERSE: 'reverse',
   WILD: 'wild',
   PLAY_AGAIN: 'play_again',
-  GURA: 'gura'
+  GURA: 'gura',
+  // Chaos mode effects
+  SWAP_HANDS: 'swap_hands',
+  STEAL_CARD: 'steal_card',
+  SWAP_RANDOM: 'swap_random',
+  SEE_HAND: 'see_hand'
 };
 
 // Game phases
@@ -52,5 +57,12 @@ export const GAME_PHASES = {
   PLAYING: 'playing',
   SUIT_SELECTION: 'suit_selection',
   GURA: 'gura',
-  GAME_OVER: 'game_over'
+  GAME_OVER: 'game_over',
+  PLAYER_SELECTION: 'player_selection' // For selecting an opponent in Chaos mode
+};
+
+// Game modes
+export const GAME_MODES = {
+  CLASSIC: 'classic',
+  CHAOS: 'chaos'
 };

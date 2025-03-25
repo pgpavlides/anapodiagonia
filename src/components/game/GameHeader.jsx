@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameContext } from '../../game/logic';
 
-const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex, playerNames, autoPlayStatus }) => {
+const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex, playerNames, autoPlayStatus, gameMode }) => {
   const { playerWins, player } = useGameContext();
   const myWins = playerWins[player?.id] || 0;
   
@@ -84,13 +84,33 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
           alignItems: 'flex-start',
           gap: '5px'
         }}>
-          <span style={{ 
-            fontWeight: 'bold', 
+          <span style={{
+            fontWeight: 'bold',
             fontSize: isMobile ? '14px' : '16px',
             textShadow: '1px 1px 2px rgba(0,0,0,0.4)'
           }}>
             Room: {roomCode}
           </span>
+          
+          {/* Game Mode Display */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            backgroundColor: gameMode === 'chaos' ? 'rgba(231, 111, 81, 0.3)' : 'rgba(42, 157, 143, 0.3)',
+            padding: isMobile ? '2px 8px' : '4px 10px',
+            borderRadius: '16px',
+            fontSize: isMobile ? '12px' : '14px',
+            marginBottom: '4px'
+          }}>
+            <span style={{ marginRight: '5px' }}>Mode:</span>
+            <span style={{
+              fontWeight: 'bold',
+              color: gameMode === 'chaos' ? '#e76f51' : '#2a9d8f'
+            }}>
+              {gameMode === 'chaos' ? 'CHAOS' : 'CLASSIC'}
+            </span>
+          </div>
+          
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -100,7 +120,7 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
             fontSize: isMobile ? '12px' : '14px'
           }}>
             <span style={{ marginRight: '5px' }}>Direction:</span>
-            <span style={{ 
+            <span style={{
             fontWeight: 'bold',
             fontSize: isMobile ? '16px' : '18px',
             animation: 'pulse 1.5s infinite',
