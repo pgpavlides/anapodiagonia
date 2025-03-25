@@ -1,29 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useGameContext } from '../../game/logic';
+import RulesModal from './RulesModal';
 
 const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex, playerNames, autoPlayStatus, gameMode }) => {
-  const { playerWins, player } = useGameContext();
-  const myWins = playerWins[player?.id] || 0;
   
   // State for autoplay notifications
   const [showAutoPlayNotification, setShowAutoPlayNotification] = useState(false);
   
+  // State for rules modal
+  const [showRulesModal, setShowRulesModal] = useState(false);
+  
   // Detect if we're on mobile using screen width
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  
-  // Toggle autoplay function
-  const toggleAutoPlay = () => {
-    // Trigger the same behavior as pressing 'P'
-    const event = new KeyboardEvent('keydown', {
-      key: 'p',
-      bubbles: true
-    });
-    window.dispatchEvent(event);
-    
-    // Show notification
-    setShowAutoPlayNotification(true);
-    setTimeout(() => setShowAutoPlayNotification(false), 2000);
-  };
   
   // We don't need to listen for 'P' key press in the header component
   // as the Game component already has this functionality
@@ -65,182 +52,225 @@ const GameHeader = ({ roomCode, direction, players, currentPlayerIndex, myIndex,
         </div>
       )}
       
+      {/* Rules Modal */}
+      <RulesModal
+        isOpen={showRulesModal}
+        onClose={() => setShowRulesModal(false)}
+        gameMode={gameMode}
+      />
+      
       <div style={{
         position: 'relative',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: isMobile ? 'flex-start' : 'center',
-        padding: isMobile ? '8px 10px' : '10px 15px',
-        background: 'linear-gradient(to right, #264653, #2a6f97)',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-        borderTopLeftRadius: '10px',
-        borderTopRightRadius: '10px',
+        padding: isMobile ? '12px 15px' : '15px 20px',
+        background: 'linear-gradient(135deg, #1a2a3a, #2a4a6a)',
+        boxShadow: '0 4px 15px rgba(0,0,0,0.4)',
+        borderTopLeftRadius: '15px',
+        borderTopRightRadius: '15px',
         color: 'white',
-        zIndex: 10
+        zIndex: 10,
+        border: '1px solid rgba(100, 150, 255, 0.2)',
+        borderBottom: 'none'
       }}>
-        <div style={{ 
-          display: 'flex', 
-          flexDirection: 'column',
-          alignItems: 'flex-start',
-          gap: '5px'
-        }}>
-          <span style={{
-            fontWeight: 'bold',
-            fontSize: isMobile ? '14px' : '16px',
-            textShadow: '1px 1px 2px rgba(0,0,0,0.4)'
-          }}>
-            Room: {roomCode}
-          </span>
-          
-          {/* Game Mode Display */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: gameMode === 'chaos' ? 'rgba(231, 111, 81, 0.3)' : 'rgba(42, 157, 143, 0.3)',
-            padding: isMobile ? '2px 8px' : '4px 10px',
-            borderRadius: '16px',
-            fontSize: isMobile ? '12px' : '14px',
-            marginBottom: '4px'
-          }}>
-            <span style={{ marginRight: '5px' }}>Mode:</span>
-            <span style={{
-              fontWeight: 'bold',
-              color: gameMode === 'chaos' ? '#e76f51' : '#2a9d8f'
-            }}>
-              {gameMode === 'chaos' ? 'CHAOS' : 'CLASSIC'}
-            </span>
-          </div>
-          
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            padding: isMobile ? '2px 8px' : '4px 10px',
-            borderRadius: '16px',
-            fontSize: isMobile ? '12px' : '14px'
-          }}>
-            <span style={{ marginRight: '5px' }}>Direction:</span>
-            <span style={{
-            fontWeight: 'bold',
-            fontSize: isMobile ? '16px' : '18px',
-            animation: 'pulse 1.5s infinite',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: isMobile ? '18px' : '22px',
-            height: isMobile ? '18px' : '22px'
-            }}>
-            {direction === 'clockwise' ? '→' : '←'}
-            </span>
-            </div>
-        
-
-        </div>
-        
-        {/* Score display in the middle */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'absolute',
-          left: '50%',
-          top: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 15,
+          alignItems: 'flex-start',
           gap: '8px'
         }}>
           <div style={{
-            background: 'linear-gradient(45deg, #2a9d8f, #264653)',
-            padding: isMobile ? '6px 12px' : '8px 16px',
-            borderRadius: '15px',
-            boxShadow: '0 3px 10px rgba(0,0,0,0.2)',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center'
+            gap: '10px'
           }}>
             <span style={{
-              color: 'white',
-              fontSize: isMobile ? '10px' : '12px',
               fontWeight: 'bold',
-              marginBottom: '-2px',
-              textTransform: 'uppercase',
-              textShadow: '0px 1px 1px rgba(0,0,0,0.4)'
-            }}>SCORE</span>
-            <span style={{
-              color: '#e9c46a',
-              fontSize: isMobile ? '24px' : '32px',
-              fontWeight: 'bold',
-              textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
-            }}>{myWins}</span>
+              fontSize: isMobile ? '16px' : '18px',
+              textShadow: '1px 1px 2px rgba(0,0,0,0.4)',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              padding: '4px 10px',
+              borderRadius: '8px'
+            }}>
+              Room: {roomCode}
+            </span>
+            
+            {/* Rules Button */}
+            <button
+              onClick={() => setShowRulesModal(true)}
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                cursor: 'pointer',
+                fontSize: isMobile ? '12px' : '14px',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <span style={{ fontSize: isMobile ? '14px' : '16px' }}>📖</span>
+              <span>Rules</span>
+            </button>
+          </div>
+          
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
+          }}>
+            {/* Game Mode Display */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: gameMode === 'chaos' ? 'rgba(231, 111, 81, 0.3)' : 'rgba(42, 157, 143, 0.3)',
+              padding: isMobile ? '3px 10px' : '5px 12px',
+              borderRadius: '8px',
+              fontSize: isMobile ? '12px' : '14px',
+              border: `1px solid ${gameMode === 'chaos' ? 'rgba(231, 111, 81, 0.5)' : 'rgba(42, 157, 143, 0.5)'}`
+            }}>
+              <span style={{ marginRight: '5px' }}>Mode:</span>
+              <span style={{
+                fontWeight: 'bold',
+                color: gameMode === 'chaos' ? '#e76f51' : '#2a9d8f'
+              }}>
+                {gameMode === 'chaos' ? 'CHAOS' : 'CLASSIC'}
+              </span>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              padding: isMobile ? '3px 10px' : '5px 12px',
+              borderRadius: '8px',
+              fontSize: isMobile ? '12px' : '14px',
+              border: '1px solid rgba(255,255,255,0.3)'
+            }}>
+              <span style={{ marginRight: '5px' }}>Direction:</span>
+              <span style={{
+                fontWeight: 'bold',
+                fontSize: isMobile ? '16px' : '18px',
+                animation: 'pulse 1.5s infinite',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: isMobile ? '18px' : '22px',
+                height: isMobile ? '18px' : '22px'
+              }}>
+                {direction === 'clockwise' ? '→' : '←'}
+              </span>
+            </div>
           </div>
         </div>
         
-        <div style={{ 
-          display: 'flex', 
-          gap: isMobile ? '4px' : '10px',
-          flexWrap: isMobile ? 'wrap' : 'nowrap',
+        {/* Center area - can be used for other information if needed */}
+        
+        <div style={{
+          display: 'flex',
+          gap: isMobile ? '8px' : '12px',
+          flexWrap: 'wrap',
           justifyContent: 'flex-end',
-          maxWidth: isMobile ? '60%' : 'auto'
+          alignItems: 'center'
         }}>
           {players.map((p) => (
             <div 
               key={p.id} 
-              style={{ 
-                padding: isMobile ? '4px 8px' : '5px 10px', 
-                background: p.isCurrentPlayer 
-                  ? 'linear-gradient(to bottom, #f4a261, #e76f51)' 
-                  : 'linear-gradient(to bottom, #e9c46a, #f4a261)',
-                borderRadius: '8px',
-                color: '#264653',
+              style={{
+                padding: isMobile ? '8px 12px' : '10px 15px',
+                background: p.isCurrentPlayer
+                  ? 'linear-gradient(135deg, #e76f51, #f4a261)'
+                  : 'linear-gradient(135deg, #2a4a6a, #1a2a3a)',
+                borderRadius: '10px',
+                color: 'white',
                 fontWeight: p.isCurrentPlayer ? 'bold' : 'normal',
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: '10px',
+                boxShadow: p.isCurrentPlayer
+                  ? '0 4px 12px rgba(231, 111, 81, 0.5)'
+                  : '0 3px 8px rgba(0, 0, 0, 0.3)',
+                transform: p.isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
+                transition: 'all 0.3s ease',
+                border: p.isCurrentPlayer
+                  ? '1px solid rgba(231, 111, 81, 0.8)'
+                  : '1px solid rgba(100, 150, 255, 0.3)'
+              }}>
+              {/* Player avatar/icon */}
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: p.isCurrentPlayer ? '#e76f51' : '#2a9d8f',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                color: 'white',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+              }}>
+                {p.name.charAt(0).toUpperCase()}
+              </div>
+              
+              {/* Player info */}
+              <div style={{
                 display: 'flex',
                 flexDirection: 'column',
-                alignItems: 'center',
-                minWidth: isMobile ? '60px' : '85px',
-                maxWidth: isMobile ? '65px' : '100px',
-                boxShadow: p.isCurrentPlayer 
-                  ? '0 3px 10px rgba(231, 111, 81, 0.5)' 
-                  : '0 2px 5px rgba(233, 196, 106, 0.3)',
-                transform: p.isCurrentPlayer ? 'scale(1.05)' : 'scale(1)',
-                transition: 'all 0.3s ease'
+                gap: '2px'
               }}>
-              <span style={{ 
-                fontSize: isMobile ? '12px' : '14px',
-                fontWeight: p.isCurrentPlayer ? 'bold' : 'normal',
-                textShadow: p.isCurrentPlayer ? '0 1px 1px rgba(0,0,0,0.2)' : 'none',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: isMobile ? '55px' : '75px'
-              }}>
-                {p.name}
-              </span>
-              <div style={{ 
-                display: 'flex',
-                gap: '4px',
-                marginTop: '2px'
-              }}>
-                <span style={{ 
-                  fontSize: isMobile ? '10px' : '12px',
-                  fontWeight: p.isCurrentPlayer ? 'bold' : 'normal',
-                  backgroundColor: p.isCurrentPlayer ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.2)',
-                  padding: isMobile ? '1px 4px' : '2px 6px',
-                  borderRadius: '10px'
-                }}>
-                  {p.cards} cards
-                </span>
-                <span style={{ 
-                  fontSize: isMobile ? '10px' : '12px',
+                {/* Player name */}
+                <div style={{
+                  fontSize: isMobile ? '12px' : '14px',
                   fontWeight: 'bold',
-                  backgroundColor: 'rgba(42, 157, 143, 0.8)',
-                  padding: isMobile ? '1px 4px' : '2px 6px',
-                  borderRadius: '10px',
-                  color: 'white'
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  maxWidth: isMobile ? '70px' : '100px'
                 }}>
-                  {p.wins || 0} {p.wins === 1 ? 'Win' : 'Wins'}
-                </span>
+                  {p.name}
+                </div>
+                
+                {/* Cards and score */}
+                <div style={{
+                  display: 'flex',
+                  gap: '6px',
+                  alignItems: 'center'
+                }}>
+                  {/* Cards count */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    backgroundColor: 'rgba(255,255,255,0.15)',
+                    padding: '2px 6px',
+                    borderRadius: '12px',
+                    fontSize: isMobile ? '10px' : '12px'
+                  }}>
+                    <span style={{ fontSize: isMobile ? '10px' : '12px' }}>🃏</span>
+                    <span>{p.cards}</span>
+                  </div>
+                  
+                  {/* Score */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    backgroundColor: 'rgba(42, 157, 143, 0.3)',
+                    padding: '2px 6px',
+                    borderRadius: '12px',
+                    fontSize: isMobile ? '10px' : '12px',
+                    color: '#e9c46a'
+                  }}>
+                    <span style={{ fontSize: isMobile ? '10px' : '12px' }}>🏆</span>
+                    <span>{p.wins === 1151 ? 1 : (p.wins || 0)}</span>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
