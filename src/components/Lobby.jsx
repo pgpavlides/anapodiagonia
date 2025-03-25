@@ -405,7 +405,7 @@ const Lobby = ({ onJoin }) => {
             <div style={styles.modalOverlay}>
               <div style={styles.modalContent}>
                 <div style={styles.modalHeader}>
-                  <h2 style={styles.modalTitle}>Game Settings</h2>
+                  <h2 style={styles.modalTitle}>Game Mode</h2>
                   <button
                     onClick={() => setShowSettings(false)}
                     style={styles.closeButton}
@@ -414,12 +414,31 @@ const Lobby = ({ onJoin }) => {
                   </button>
                 </div>
                 <GameSettings gameMode={gameMode} setGameMode={setGameMode} />
-                <button
-                  onClick={() => setShowSettings(false)}
-                  style={styles.saveButton}
-                >
-                  Save Settings
-                </button>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <button
+                    onClick={() => {
+                      // Open rules in a new window or tab
+                      window.open('/rules.html', '_blank');
+                    }}
+                    style={{
+                      ...styles.saveButton,
+                      backgroundColor: 'rgba(42, 157, 143, 0.8)',
+                      flex: 1
+                    }}
+                  >
+                    View Rules
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowSettings(false)}
+                    style={{
+                      ...styles.saveButton,
+                      flex: 1
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -436,8 +455,8 @@ const Lobby = ({ onJoin }) => {
                 style={styles.squareButton}
               >
                 <div style={styles.buttonContent}>
-                  <span style={styles.buttonIcon}>⚙️</span>
-                  <span style={styles.buttonText}>SETTINGS</span>
+                  <span style={styles.buttonIcon}>📖</span>
+                  <span style={styles.buttonText}>RULES</span>
                 </div>
               </button>
               
